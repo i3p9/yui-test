@@ -1,0 +1,145 @@
+// This is your Prisma schema file
+// Defines the database structure
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// ====================
+// VIDEO MODEL
+// ====================
+// Stores information about each archived video
+model Video {
+  // Primary identifier - the 11-character YouTube ID (e.g., "dQw4w9WgXcQ")
+  videoId                String      @id @map("video_id")
+
+  // Basic metadata
+  title                  String      // Video title
+  uploader               String?     // Channel name (optional because some videos might not have it)
+  uploaderId             String?     @map("uploader_id") // YouTube channel ID (starts with UC...)
+  uploadDate             String?     @map("upload_date") // Format: YYYY-MM-DD
+  durationSeconds        Int?        @map("duration_seconds") // Length in seconds
+  filesizeBytes          BigInt?     @map("filesize_bytes") // File size in bytes
+  description            String?     // Video description
+  tags                   String?     // JSON array stored as string (e.g., '["gaming", "tutorial"]')
+
+  // File locations
+  mediaType              String      @map("media_type") // 'channel_archive' or 'liked_videos'
+  libraryPath            String      @map("library_path") // Which library root this belongs to
+  videoPath              String      @map("video_path") // Full path to the video file
+  thumbnailPath          String?     @map("thumbnail_path") // Path to original thumbnail (if exists)
+  generatedThumbnail     String?     @map("generated_thumbnail") // Path to ffmpeg-generated thumbnail
+
+  // Technical details
+  resolution             String?     // e.g., "1920x1080"
+  videoCodec             String?     @map("video_codec") // e.g., "h264", "vp9"
+  audioCodec             String?     @map("audio_codec") // e.g., "aac", "opus"
+
+  // Metadata tracking
+  hasCompleteMetadata    Boolean     @default(false) @map("has_complete_metadata") // Do we have all the info?
+  metadataSource         String      @map("metadata_source") // 'info_json' | 'filename' | 'database'
+
+  // Change detection (for incremental scans)
+  infoJsonMtime          String?     @map("info_json_mtime") // Last modified time of .info.json
+  mediaMtime             String?     @map("media_mtime") // Last modified time of video file
+
+  // Status
+  missingOnDisk          Boolean     @default(false) @map("missing_on_disk") // Was this file deleted?
+
+  // Timestamps
+  firstSeenAt            String      @map("first_seen_at") // When we first discovered this video
+  lastScannedAt          String      @map("last_scanned_at") // Last time we saw it in a scan
+
+  // Relationships (we'll add these next)
+  subtitles              Subtitle[]
+  watchProgress          WatchProgress?
+
+  // Indexes for faster queries
+  @@index([uploader])
+  @@index([uploadDate])
+  @@index([mediaType])
+  @@index([missingOnDisk])
+
+  // Map to database table name
+  @@map("video")
+}
+
+// ====================
+// SUBTITLE MODEL
+// ====================
+// Stores subtitle/caption files for videos
+// A video can have multiple subtitle files (different languages)
+model Subtitle {
+  id                Int         @id @default(autoincrement()) // Auto-incrementing ID
+  videoId           String      @map("video_id") // Which video this subtitle belongs to
+  language          String?     // Language code (e.g., "en", "es", "ja")
+  kind              String?     // File type: 'vtt' | 'srt' | 'ass'
+  path              String      // Full path to subtitle file
+  filesizeBytes     Int?        @map("filesize_bytes")
+
+  // Relationship: This subtitle belongs to a Video
+  video             Video       @relation(fields: [videoId], references: [videoId], onDelete: Cascade)
+
+  @@index([videoId]) // Index for fast lookup by video
+  @@map("subtitle")
+}
+
+// ====================
+// CHANNEL MODEL
+// ====================
+// Aggregated statistics and info about YouTube channels
+model Channel {
+  uploaderId        String      @id @map("uploader_id") // YouTube channel ID (e.g., "UC...")
+  name              String      // Channel name
+  description       String?     // Channel description (from channel-level info.json)
+  thumbnailPath     String?     @map("thumbnail_path") // Channel avatar/banner
+  videoCount        Int         @default(0) @map("video_count") // How many videos we have
+  lastUploadDate    String?     @map("last_upload_date") // Most recent video upload date
+  lastScannedAt     String      @map("last_scanned_at") // Last time we updated this
+
+  @@map("channel")
+}
+
+// ====================
+// WATCH PROGRESS MODEL
+// ====================
+// Tracks playback position for each video (like Netflix "Continue Watching")
+model WatchProgress {
+  videoId           String      @id @map("video_id") // One progress record per video
+  positionSeconds   Int         @map("position_seconds") // Current playback position
+  durationSeconds   Int?        @map("duration_seconds") // Total video length
+  lastWatchedAt     String      @map("last_watched_at") // When user last watched
+  completed         Boolean     @default(false) // Did they finish it? (>95% watched)
+
+  // Relationship: This progress belongs to a Video
+  video             Video       @relation(fields: [videoId], references: [videoId], onDelete: Cascade)
+
+  @@map("watch_progress")
+}
+
+// ====================
+// SCAN LOG MODEL
+// ====================
+// Records each scan operation for debugging and history
+model ScanLog {
+  id                Int         @id @default(autoincrement())
+  startedAt         String      @map("started_at") // When scan started
+  endedAt           String?     @map("ended_at") // When it finished (null if still running)
+  status            String      // 'running' | 'completed' | 'failed'
+  libraryPath       String?     @map("library_path") // Which library was scanned (null = all)
+  mode              String      // 'full' | 'incremental'
+
+  // Statistics
+  videosScanned     Int         @default(0) @map("videos_scanned") // Total processed
+  videosAdded       Int         @default(0) @map("videos_added") // New discoveries
+  videosUpdated     Int         @default(0) @map("videos_updated") // Metadata changed
+  videosRemoved     Int         @default(0) @map("videos_removed") // Files deleted
+  errors            String?     // JSON array of errors (if any occurred)
+
+  @@map("scan_log")
+}

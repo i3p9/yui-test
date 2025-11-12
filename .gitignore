@@ -1,0 +1,50 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+backend/dist/
+frontend/dist/
+
+# Environment
+.env
+.env.local
+
+# Database
+*.db
+*.db-journal
+data/
+
+# Thumbnails
+.thumbnails/
+thumbnails/
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Config (keep directory, ignore actual config)
+config/config.json
+
+# Backups
+backups/
+
+# Testing
+coverage/
+.nyc_output/
+
+# Misc
+.cache/
+temp/
+tmp/

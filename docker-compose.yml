@@ -1,0 +1,41 @@
+version: '3.8'
+
+services:
+  yui:
+    build: .
+    container_name: yui
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+    volumes:
+      # Configuration directory (persisted, writable)
+      - ./config:/config
+
+      # Database (persisted)
+      - ./data:/data
+
+      # Thumbnails (persisted)
+      - ./thumbnails:/app/.thumbnails
+
+      # Video libraries (read-only)
+      # Add your video library paths here
+      # Example:
+      - /:/media/archive:ro
+      # - /path/to/liked/videos:/media/liked:ro
+
+    environment:
+      - NODE_ENV=production
+      - CONFIG_PATH=/config/config.json
+      - DATABASE_URL=file:/data/yui.db
+
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+# Optional: Create named volumes for data persistence
+volumes:
+  yui-data:
+  yui-thumbnails:

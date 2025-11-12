@@ -1,0 +1,41 @@
+{
+  "compilerOptions": {
+    // Where our source code lives
+    "rootDir": "./src",
+
+    // Where compiled JavaScript will go
+    "outDir": "./dist",
+
+    // Use modern JavaScript modules (import/export)
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+
+    // Target modern Node.js (18+)
+    "target": "ES2022",
+
+    // Include Node.js types (fs, path, etc.)
+    "types": ["node"],
+
+    // Generate source maps for debugging
+    "sourceMap": true,
+
+    // Enable all strict type checking (catch bugs early!)
+    "strict": true,
+
+    // Allow JSON imports
+    "resolveJsonModule": true,
+
+    // Ensure proper module handling
+    "esModuleInterop": true,
+    "forceConsistentCasingInFileNames": true,
+
+    // Skip checking .d.ts files (faster compilation)
+    "skipLibCheck": true
+  },
+
+  // Only compile files in src/
+  "include": ["src/**/*"],
+
+  // Don't compile these
+  "exclude": ["node_modules", "dist"]
+}

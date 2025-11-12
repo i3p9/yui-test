@@ -1,0 +1,26 @@
+node_modules
+npm-debug.log
+*.log
+.git
+.gitignore
+.env
+.DS_Store
+.vscode
+*.md
+!README.md
+
+# Backend
+backend/node_modules
+backend/dist
+backend/yui.db
+backend/yui.db-journal
+backend/.env
+
+# Frontend
+frontend/node_modules
+frontend/dist
+frontend/.vite
+
+# Thumbnails and data
+.thumbnails
+downloads
