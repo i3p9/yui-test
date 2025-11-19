@@ -49,20 +49,31 @@ export function ScanProgress({
 
 	if (!status) {
 		return (
-			<div className='bg-gray-800 rounded-lg p-6'>
-				<h2 className='text-xl font-semibold mb-4'>Scan Progress</h2>
-				<p className='text-gray-400'>Loading...</p>
+			<div className='border-4 border-zinc-900 bg-zinc-950 p-6 shadow-[10px_10px_0_0_#09090b]'>
+				<p className='text-xs font-mono uppercase tracking-[0.3em] text-zinc-500'>Status Feed</p>
+				<h2 className='mt-2 text-lg font-black uppercase tracking-widest text-white'>Scan Progress</h2>
+				<p className='mt-6 text-xs font-mono uppercase tracking-widest text-zinc-500'>Loading...</p>
 			</div>
 		);
 	}
 
 	if (!status.isRunning) {
 		return (
-			<div className='bg-gray-800 rounded-lg p-6'>
-				<h2 className='text-xl font-semibold mb-4'>Scan Progress</h2>
-				<div className='text-center py-8'>
-					<div className='text-4xl mb-2'>💤</div>
-					<p className='text-gray-400'>No scan running</p>
+			<div className='border-4 border-zinc-900 bg-zinc-950 p-6 shadow-[10px_10px_0_0_#09090b]'>
+				<div className='flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between'>
+					<div>
+						<p className='text-xs font-mono uppercase tracking-[0.3em] text-zinc-500'>Status Feed</p>
+						<h2 className='mt-2 text-lg font-black uppercase tracking-widest text-white'>Scan Progress</h2>
+					</div>
+					<span className='inline-flex items-center gap-2 border-2 border-zinc-700 bg-zinc-900 px-3 py-2 text-xs font-black uppercase tracking-[0.2em] text-zinc-300'>
+						<span className='inline-block h-2 w-2 bg-current' />
+						Idle
+					</span>
+				</div>
+
+				<div className='mt-6 border-2 border-zinc-800 bg-zinc-900 px-6 py-10 text-center'>
+					<div className='mb-4 text-4xl'>💤</div>
+					<p className='text-xs font-mono uppercase tracking-[0.3em] text-zinc-500'>No scan running</p>
 				</div>
 			</div>
 		);
@@ -82,89 +93,78 @@ export function ScanProgress({
 	};
 
 	return (
-		<div className='bg-gray-800 rounded-lg p-6'>
-			<div className='flex items-center justify-between mb-4'>
-				<h2 className='text-xl font-semibold'>Scan Progress</h2>
-				<div className='flex items-center gap-2'>
-					<div className='w-2 h-2 bg-green-500 rounded-full animate-pulse'></div>
-					<span className='text-sm text-gray-400'>Running</span>
+		<div className='border-4 border-zinc-900 bg-zinc-950 p-6 shadow-[10px_10px_0_0_#09090b]'>
+			<div className='flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between'>
+				<div>
+					<p className='text-xs font-mono uppercase tracking-[0.3em] text-zinc-500'>Status Feed</p>
+					<h2 className='mt-2 text-lg font-black uppercase tracking-widest text-white'>Scan Progress</h2>
+				</div>
+				<div className='inline-flex items-center gap-2 border-2 border-red-600 bg-red-950 px-3 py-2 text-xs font-black uppercase tracking-[0.2em] text-red-300'>
+					<span className='inline-block h-2 w-2 animate-pulse bg-current' />
+					Running
 				</div>
 			</div>
 
-			<div className='space-y-4'>
-				{/* Phase Indicator */}
+			<div className='mt-6 space-y-6'>
 				{status.phase && (
-					<div className='bg-gray-700/50 rounded-lg p-3'>
-						<p className='text-sm text-gray-400'>Current Phase</p>
-						<p className='font-medium'>
-							{status.phase === 'scanning' && '🔍 Scanning Media Files'}
-							{status.phase === 'thumbnails' && '🖼️ Generating Thumbnails'}
-							{status.phase === 'complete' && '✅ Complete'}
+					<div className='border-2 border-zinc-800 bg-zinc-900 px-4 py-4'>
+						<p className='text-xs font-mono uppercase tracking-[0.3em] text-zinc-500'>Current Phase</p>
+						<p className='mt-2 text-base font-black text-white'>
+							{status.phase === "scanning" && "🔍 Scanning Media Files"}
+							{status.phase === "thumbnails" && "🖼️ Generating Thumbnails"}
+							{status.phase === "complete" && "✅ Complete"}
 						</p>
 					</div>
 				)}
 
-				{/* Current Library */}
-				{status.currentLibrary && status.phase === 'scanning' && (
-					<div className='bg-gray-700/50 rounded-lg p-3'>
-						<p className='text-sm text-gray-400'>Current Library</p>
-						<p className='font-medium'>{status.currentLibrary}</p>
+				{status.currentLibrary && status.phase === "scanning" && (
+					<div className='border-2 border-zinc-800 bg-zinc-900 px-4 py-4'>
+						<p className='text-xs font-mono uppercase tracking-[0.3em] text-zinc-500'>Current Library</p>
+						<p className='mt-2 font-black text-white'>{status.currentLibrary}</p>
 					</div>
 				)}
 
-				{/* Current Thumbnail (during thumbnail phase) */}
-				{status.phase === 'thumbnails' && status.currentThumbnail && (
-					<div className='bg-gray-700/50 rounded-lg p-3'>
-						<p className='text-sm text-gray-400'>Processing</p>
-						<p className='font-medium font-mono text-sm'>{status.currentThumbnail}</p>
+				{status.phase === "thumbnails" && status.currentThumbnail && (
+					<div className='border-2 border-zinc-800 bg-zinc-900 px-4 py-4'>
+						<p className='text-xs font-mono uppercase tracking-[0.3em] text-zinc-500'>Processing</p>
+						<p className='mt-2 font-mono text-sm text-zinc-200'>{status.currentThumbnail}</p>
 					</div>
 				)}
 
-				{/* Stats Grid - Scanning Phase */}
-				{status.phase === 'scanning' && (
-					<div className='grid grid-cols-2 gap-3'>
-						<div className='bg-gray-700/50 rounded-lg p-4'>
-							<p className='text-sm text-gray-400 mb-1'>Scanned</p>
-							<p className='text-2xl font-bold text-blue-400'>
-								{status.videosScanned}
-							</p>
+				{status.phase === "scanning" && (
+					<div className='grid grid-cols-2 gap-4'>
+						<div className='border-2 border-zinc-800 bg-zinc-900 px-4 py-4'>
+							<p className='text-xs font-mono uppercase tracking-[0.3em] text-zinc-500'>Scanned</p>
+							<p className='mt-3 text-3xl font-black text-blue-400'>{status.videosScanned}</p>
 						</div>
-						<div className='bg-gray-700/50 rounded-lg p-4'>
-							<p className='text-sm text-gray-400 mb-1'>Added</p>
-							<p className='text-2xl font-bold text-green-400'>
-								{status.videosAdded}
-							</p>
+						<div className='border-2 border-zinc-800 bg-zinc-900 px-4 py-4'>
+							<p className='text-xs font-mono uppercase tracking-[0.3em] text-zinc-500'>Added</p>
+							<p className='mt-3 text-3xl font-black text-green-400'>{status.videosAdded}</p>
 						</div>
-						<div className='bg-gray-700/50 rounded-lg p-4'>
-							<p className='text-sm text-gray-400 mb-1'>Updated</p>
-							<p className='text-2xl font-bold text-yellow-400'>
-								{status.videosUpdated}
-							</p>
+						<div className='border-2 border-zinc-800 bg-zinc-900 px-4 py-4'>
+							<p className='text-xs font-mono uppercase tracking-[0.3em] text-zinc-500'>Updated</p>
+							<p className='mt-3 text-3xl font-black text-yellow-400'>{status.videosUpdated}</p>
 						</div>
-						<div className='bg-gray-700/50 rounded-lg p-4'>
-							<p className='text-sm text-gray-400 mb-1'>Elapsed</p>
-							<p className='text-2xl font-bold text-purple-400'>
-								{formatTime(elapsed)}
-							</p>
+						<div className='border-2 border-zinc-800 bg-zinc-900 px-4 py-4'>
+							<p className='text-xs font-mono uppercase tracking-[0.3em] text-zinc-500'>Elapsed</p>
+							<p className='mt-3 text-3xl font-black text-purple-400'>{formatTime(elapsed)}</p>
 						</div>
 					</div>
 				)}
 
-				{/* Stats Grid - Thumbnail Phase */}
-				{status.phase === 'thumbnails' && (
-					<div className='space-y-3'>
-						{/* Progress Bar */}
+				{status.phase === "thumbnails" && (
+					<div className='space-y-4'>
 						{status.thumbnailsTotal && status.thumbnailsTotal > 0 && (
-							<div>
-								<div className='flex justify-between text-sm mb-1'>
-									<span className='text-gray-400'>Progress</span>
-									<span className='text-gray-400'>
+							<div className='border-2 border-zinc-800 bg-zinc-900 px-4 py-4'>
+								<div className='mb-3 flex justify-between text-xs font-mono uppercase tracking-[0.3em] text-zinc-500'>
+									<span>Progress</span>
+									<span>
 										{status.thumbnailsGenerated || 0} / {status.thumbnailsTotal}
 									</span>
 								</div>
-								<div className='w-full bg-gray-700 rounded-full h-2'>
+								<div className='h-2 border-2 border-zinc-800 bg-zinc-950'>
 									<div
-										className='bg-blue-500 h-2 rounded-full transition-all duration-300'
+										className='h-full bg-blue-500 transition-all duration-300'
 										style={{
 											width: `${((status.thumbnailsGenerated || 0) / status.thumbnailsTotal) * 100}%`,
 										}}
@@ -173,29 +173,28 @@ export function ScanProgress({
 							</div>
 						)}
 
-						{/* Thumbnail Stats Grid */}
-						<div className='grid grid-cols-2 gap-3'>
-							<div className='bg-gray-700/50 rounded-lg p-4'>
-								<p className='text-sm text-gray-400 mb-1'>📷 From Images</p>
-								<p className='text-2xl font-bold text-green-400'>
+						<div className='grid grid-cols-2 gap-4'>
+							<div className='border-2 border-zinc-800 bg-zinc-900 px-4 py-4'>
+								<p className='text-xs font-mono uppercase tracking-[0.3em] text-zinc-500'>📷 From Images</p>
+								<p className='mt-3 text-3xl font-black text-green-400'>
 									{status.thumbnailsFromOriginal || 0}
 								</p>
 							</div>
-							<div className='bg-gray-700/50 rounded-lg p-4'>
-								<p className='text-sm text-gray-400 mb-1'>🎬 Extracted</p>
-								<p className='text-2xl font-bold text-blue-400'>
+							<div className='border-2 border-zinc-800 bg-zinc-900 px-4 py-4'>
+								<p className='text-xs font-mono uppercase tracking-[0.3em] text-zinc-500'>🎬 Extracted</p>
+								<p className='mt-3 text-3xl font-black text-blue-400'>
 									{status.thumbnailsFromExtraction || 0}
 								</p>
 							</div>
-							<div className='bg-gray-700/50 rounded-lg p-4'>
-								<p className='text-sm text-gray-400 mb-1'>✗ Failed</p>
-								<p className='text-2xl font-bold text-red-400'>
+							<div className='border-2 border-zinc-800 bg-zinc-900 px-4 py-4'>
+								<p className='text-xs font-mono uppercase tracking-[0.3em] text-zinc-500'>✗ Failed</p>
+								<p className='mt-3 text-3xl font-black text-red-400'>
 									{status.thumbnailsFailed || 0}
 								</p>
 							</div>
-							<div className='bg-gray-700/50 rounded-lg p-4'>
-								<p className='text-sm text-gray-400 mb-1'>Elapsed</p>
-								<p className='text-2xl font-bold text-purple-400'>
+							<div className='border-2 border-zinc-800 bg-zinc-900 px-4 py-4'>
+								<p className='text-xs font-mono uppercase tracking-[0.3em] text-zinc-500'>Elapsed</p>
+								<p className='mt-3 text-3xl font-black text-purple-400'>
 									{formatTime(elapsed)}
 								</p>
 							</div>
@@ -203,35 +202,34 @@ export function ScanProgress({
 					</div>
 				)}
 
-				{/* Mode and Path */}
-				<div className='flex gap-2 text-sm'>
-					<span className='px-2 py-1 bg-gray-700 rounded'>
-						Mode: <span className='text-blue-400'>{status.mode}</span>
+				<div className='flex flex-col gap-2 text-xs font-mono uppercase tracking-[0.2em] text-zinc-500 sm:flex-row sm:items-center sm:gap-3'>
+					<span className='inline-flex items-center gap-2 border-2 border-zinc-800 bg-zinc-900 px-3 py-2 text-white'>
+						<span className='text-zinc-500'>Mode</span>
+						<span className='font-black text-blue-400'>{status.mode}</span>
 					</span>
 					{status.libraryPath && (
-						<span className='px-2 py-1 bg-gray-700 rounded truncate'>
-							Path:{" "}
-							<span className='text-blue-400'>
+						<span className='inline-flex min-h-[40px] flex-1 items-center border-2 border-zinc-800 bg-zinc-900 px-3 py-2 text-left text-white'>
+							<span className='mr-2 text-zinc-500'>Path</span>
+							<span className='truncate font-mono tracking-normal text-blue-400 normal-case'>
 								{status.libraryPath}
 							</span>
 						</span>
 					)}
 				</div>
 
-				{/* Errors */}
 				{status.errors.length > 0 && (
-					<div className='bg-red-900/30 border border-red-700 rounded-lg p-3'>
-						<p className='text-sm font-medium text-red-400 mb-2'>
+					<div className='border-2 border-red-600 bg-red-950 px-4 py-4'>
+						<p className='mb-3 text-xs font-black uppercase tracking-[0.3em] text-red-300'>
 							Errors ({status.errors.length})
 						</p>
-						<div className='space-y-1 max-h-32 overflow-y-auto'>
+						<div className='max-h-32 space-y-1 overflow-y-auto'>
 							{status.errors.slice(0, 5).map((error, i) => (
-								<p key={i} className='text-xs text-red-300 font-mono'>
+								<p key={i} className='text-xs font-mono uppercase tracking-widest text-red-200'>
 									{error}
 								</p>
 							))}
 							{status.errors.length > 5 && (
-								<p className='text-xs text-red-400'>
+								<p className='text-xs font-mono uppercase tracking-widest text-red-200'>
 									... and {status.errors.length - 5} more
 								</p>
 							)}

@@ -37,69 +37,81 @@ export function ScanControls({ onScanStarted, isScanning }: ScanControlsProps) {
   }
 
   return (
-    <div className="bg-gray-800 rounded-lg p-6">
-      <h2 className="text-xl font-semibold mb-4">Scan Controls</h2>
-
-      <div className="space-y-4">
-        {/* Mode Selection */}
+    <div className="border-4 border-zinc-900 bg-zinc-950 p-6 shadow-[10px_10px_0_0_#09090b]">
+      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <label className="block text-sm font-medium text-gray-300 mb-2">
+          <p className="text-xs font-mono uppercase tracking-[0.3em] text-zinc-500">CONTROL PANEL</p>
+          <h2 className="mt-2 text-lg font-black tracking-widest text-white">Scan Controls</h2>
+        </div>
+        <div
+          className={`inline-flex items-center gap-2 border-2 px-3 py-2 text-xs font-black uppercase tracking-[0.2em] ${
+            isScanning
+              ? 'border-red-600 bg-red-950 text-red-400'
+              : 'border-zinc-700 bg-zinc-900 text-zinc-300'
+          }`}
+        >
+          <span className="inline-block h-2 w-2 bg-current" />
+          {isScanning ? 'Live' : 'Standby'}
+        </div>
+      </div>
+
+      <div className="space-y-6">
+        <div>
+          <label className="mb-3 block text-xs font-mono uppercase tracking-[0.3em] text-zinc-500">
             Scan Mode
           </label>
-          <div className="flex gap-3">
+          <div className="flex flex-col gap-3 md:flex-row">
             <button
               onClick={() => setMode('full')}
               disabled={isScanning}
-              className={`flex-1 px-4 py-3 rounded-lg border transition-colors ${
+              className={`flex-1 border-2 px-4 py-4 text-left transition-colors ${
                 mode === 'full'
-                  ? 'bg-blue-600 border-blue-500 text-white'
-                  : 'bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-600'
-              } ${isScanning ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  ? 'border-red-600 bg-red-950 text-red-200'
+                  : 'border-zinc-800 bg-zinc-900 text-zinc-300 hover:border-zinc-600 hover:text-white'
+              } ${isScanning ? 'cursor-not-allowed opacity-60' : ''}`}
             >
-              <div className="font-medium">Full Scan</div>
-              <div className="text-xs mt-1 opacity-80">
-                Scan all videos and update metadata
+              <div className="text-base font-black uppercase tracking-wide">Full Scan</div>
+              <div className="mt-1 text-xs font-mono uppercase text-zinc-500">
+                Scan all videos and refresh metadata
               </div>
             </button>
             <button
               onClick={() => setMode('incremental')}
               disabled={isScanning}
-              className={`flex-1 px-4 py-3 rounded-lg border transition-colors ${
+              className={`flex-1 border-2 px-4 py-4 text-left transition-colors ${
                 mode === 'incremental'
-                  ? 'bg-blue-600 border-blue-500 text-white'
-                  : 'bg-gray-700 border-gray-600 text-gray-300 hover:bg-gray-600'
-              } ${isScanning ? 'opacity-50 cursor-not-allowed' : ''}`}
+                  ? 'border-red-600 bg-red-950 text-red-200'
+                  : 'border-zinc-800 bg-zinc-900 text-zinc-300 hover:border-zinc-600 hover:text-white'
+              } ${isScanning ? 'cursor-not-allowed opacity-60' : ''}`}
             >
-              <div className="font-medium">Incremental</div>
-              <div className="text-xs mt-1 opacity-80">
-                Only scan changed files
+              <div className="text-base font-black uppercase tracking-wide">Incremental</div>
+              <div className="mt-1 text-xs font-mono uppercase text-zinc-500">
+                Only process changed files
               </div>
             </button>
           </div>
         </div>
 
-        {/* Start Button */}
         <button
           onClick={handleStartScan}
           disabled={loading || isScanning}
-          className={`w-full px-6 py-3 rounded-lg font-medium transition-colors ${
+          className={`w-full border-4 px-6 py-4 font-black uppercase tracking-[0.3em] transition-colors ${
             loading || isScanning
-              ? 'bg-gray-700 text-gray-400 cursor-not-allowed'
-              : 'bg-green-600 hover:bg-green-700 text-white'
+              ? 'cursor-not-allowed border-zinc-800 bg-zinc-900 text-zinc-500'
+              : 'border-green-600 bg-green-950 text-green-300 hover:border-green-500 hover:text-green-200'
           }`}
         >
-          {loading ? 'Starting...' : isScanning ? 'Scan In Progress' : 'Start Scan'}
+          {loading ? 'Starting...' : isScanning ? 'Scan In Progress' : 'Initiate Scan'}
         </button>
 
-        {/* Messages */}
         {error && (
-          <div className="bg-red-900/30 border border-red-700 rounded-lg p-3">
-            <p className="text-red-400 text-sm">{error}</p>
+          <div className="border-2 border-red-600 bg-red-950 p-4">
+            <p className="text-xs font-mono uppercase tracking-widest text-red-300">{error}</p>
           </div>
         )}
         {success && (
-          <div className="bg-green-900/30 border border-green-700 rounded-lg p-3">
-            <p className="text-green-400 text-sm">{success}</p>
+          <div className="border-2 border-green-600 bg-green-950 p-4">
+            <p className="text-xs font-mono uppercase tracking-widest text-green-300">{success}</p>
           </div>
         )}
       </div>

@@ -172,71 +172,82 @@ export function LibraryManager() {
 
   if (loading) {
     return (
-      <div className="bg-gray-800 rounded-lg p-6">
-        <h2 className="text-xl font-semibold mb-4">Library Management</h2>
-        <p className="text-gray-400">Loading...</p>
+      <div className="border-4 border-zinc-900 bg-zinc-950 p-6 shadow-[10px_10px_0_0_#09090b]">
+        <p className="text-xs font-mono uppercase tracking-[0.3em] text-zinc-500">Library Control</p>
+        <h2 className="mt-2 text-lg font-black uppercase tracking-widest text-white">Library Management</h2>
+        <p className="mt-6 text-xs font-mono uppercase tracking-widest text-zinc-500">Loading...</p>
       </div>
     )
   }
 
   if (!config) {
     return (
-      <div className="bg-gray-800 rounded-lg p-6">
-        <h2 className="text-xl font-semibold mb-4">Library Management</h2>
-        <p className="text-red-400">Error: {error || 'Failed to load config'}</p>
+      <div className="border-4 border-zinc-900 bg-zinc-950 p-6 shadow-[10px_10px_0_0_#09090b]">
+        <p className="text-xs font-mono uppercase tracking-[0.3em] text-zinc-500">Library Control</p>
+        <h2 className="mt-2 text-lg font-black uppercase tracking-widest text-white">Library Management</h2>
+        <p className="mt-6 text-xs font-mono uppercase tracking-widest text-red-400">
+          Error: {error || 'Failed to load config'}
+        </p>
       </div>
     )
   }
 
   return (
-    <div className="bg-gray-800 rounded-lg p-6">
-      <div className="flex items-center justify-between mb-6">
+    <div className="border-4 border-zinc-900 bg-zinc-950 p-6 shadow-[10px_10px_0_0_#09090b]">
+      <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
         <div>
-          <h2 className="text-xl font-semibold">Library Management</h2>
-          <p className="text-sm text-gray-400 mt-1">
+          <p className="text-xs font-mono uppercase tracking-[0.3em] text-zinc-500">Library Control</p>
+          <h2 className="mt-2 text-lg font-black uppercase tracking-widest text-white">Library Management</h2>
+          <p className="mt-3 text-xs font-mono uppercase tracking-[0.3em] text-zinc-500">
             Manage your video library sources
           </p>
         </div>
         {saving && (
-          <div className="flex items-center gap-2 text-sm text-blue-400">
-            <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin"></div>
-            Saving...
+          <div className="flex items-center gap-2 border-2 border-blue-600 bg-blue-950 px-3 py-2 text-xs font-black uppercase tracking-[0.3em] text-blue-300">
+            <div className="h-3 w-3 animate-spin border-2 border-blue-400 border-t-transparent" />
+            Saving
           </div>
         )}
       </div>
 
       {error && (
-        <div className="bg-red-900/30 border border-red-700 rounded-lg p-3 mb-4">
-          <p className="text-red-400 text-sm">{error}</p>
+        <div className="mb-4 border-2 border-red-600 bg-red-950 p-4">
+          <p className="text-xs font-mono uppercase tracking-[0.3em] text-red-300">{error}</p>
         </div>
       )}
 
-      <div className="space-y-3">
+      <div className="space-y-4">
         {config.libraries.map((lib, index) => (
           <div key={index}>
             {editingIndex === index ? (
               // Edit Form
-              <div className="bg-gray-800/60 border border-blue-600 rounded-xl p-5 space-y-4">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-base font-semibold text-white">Edit Library</h3>
-                  <span className="text-xs px-2 py-1 bg-blue-600/20 text-blue-400 rounded">Editing</span>
+              <div className="border-2 border-blue-600 bg-zinc-950 p-6 shadow-[6px_6px_0_0_#09090b] space-y-5">
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                  <h3 className="text-lg font-black uppercase tracking-widest text-white">Edit Library</h3>
+                  <span className="inline-flex items-center border-2 border-blue-600 bg-blue-950 px-3 py-1 text-xs font-mono uppercase tracking-[0.3em] text-blue-300">
+                    Editing
+                  </span>
                 </div>
-                <div className="grid grid-cols-2 gap-4">
+                <div className="grid gap-4 md:grid-cols-2">
                   <div>
-                    <label className="block text-xs font-medium text-gray-400 mb-2">Name</label>
+                    <label className="mb-2 block text-xs font-mono uppercase tracking-[0.3em] text-zinc-500">
+                      Name
+                    </label>
                     <input
                       type="text"
                       value={formData.name}
                       onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                      className="w-full bg-gray-900/50 border border-gray-700 focus:border-blue-500 focus:bg-gray-900 rounded-lg px-3 py-2 text-sm outline-none transition-all"
+                      className="w-full border-2 border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-white outline-none transition-all focus:border-blue-500 focus:bg-zinc-950"
                     />
                   </div>
                   <div>
-                    <label className="block text-xs font-medium text-gray-400 mb-2">Media Type</label>
+                    <label className="mb-2 block text-xs font-mono uppercase tracking-[0.3em] text-zinc-500">
+                      Media Type
+                    </label>
                     <select
                       value={formData.mediaType}
                       onChange={(e) => setFormData({ ...formData, mediaType: e.target.value })}
-                      className="w-full bg-gray-900/50 border border-gray-700 focus:border-blue-500 focus:bg-gray-900 rounded-lg px-3 py-2 text-sm outline-none transition-all"
+                      className="w-full border-2 border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-white outline-none transition-all focus:border-blue-500 focus:bg-zinc-950"
                     >
                       <option value="channel_archive">Channel Archive</option>
                       <option value="liked_videos">Liked Videos</option>
@@ -246,33 +257,37 @@ export function LibraryManager() {
                   </div>
                 </div>
                 <div>
-                  <label className="block text-xs font-medium text-gray-400 mb-2">Path</label>
+                  <label className="mb-2 block text-xs font-mono uppercase tracking-[0.3em] text-zinc-500">
+                    Path
+                  </label>
                   <input
                     type="text"
                     value={formData.path}
                     onChange={(e) => setFormData({ ...formData, path: e.target.value })}
-                    className="w-full bg-gray-900/50 border border-gray-700 focus:border-blue-500 focus:bg-gray-900 rounded-lg px-3 py-2 text-sm font-mono outline-none transition-all"
+                    className="w-full border-2 border-zinc-800 bg-zinc-900 px-3 py-2 text-sm font-mono text-white outline-none transition-all focus:border-blue-500 focus:bg-zinc-950"
                   />
                 </div>
-                <div className="flex items-center gap-2 pt-1">
+                <div className="flex items-center gap-3 pt-1">
                   <input
                     type="checkbox"
                     checked={formData.skip || false}
                     onChange={(e) => setFormData({ ...formData, skip: e.target.checked })}
-                    className="rounded w-4 h-4 text-blue-600"
+                    className="h-4 w-4 border-2 border-zinc-700 bg-zinc-900 accent-blue-500 focus:ring-0"
                   />
-                  <label className="text-sm text-gray-300">Skip during scans</label>
+                  <label className="text-xs font-mono uppercase tracking-[0.2em] text-zinc-400">
+                    Skip during scans
+                  </label>
                 </div>
-                <div className="flex gap-3 pt-3 border-t border-gray-700">
+                <div className="flex flex-col gap-3 border-t-2 border-zinc-800 pt-4 sm:flex-row">
                   <button
                     onClick={() => handleEdit(index)}
-                    className="flex-1 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg text-sm font-medium transition-colors"
+                    className="flex-1 border-2 border-blue-600 bg-blue-950 px-4 py-3 text-xs font-black uppercase tracking-[0.3em] text-blue-200 transition-colors hover:border-blue-500 hover:text-blue-100"
                   >
                     Save Changes
                   </button>
                   <button
                     onClick={cancelEdit}
-                    className="px-4 py-2 bg-gray-700/50 hover:bg-gray-700 text-gray-300 hover:text-white rounded-lg text-sm font-medium transition-colors"
+                    className="border-2 border-zinc-800 bg-zinc-900 px-4 py-3 text-xs font-black uppercase tracking-[0.3em] text-zinc-300 transition-colors hover:border-zinc-600 hover:text-white"
                   >
                     Cancel
                   </button>
@@ -281,66 +296,61 @@ export function LibraryManager() {
             ) : (
               // Library Card
               <div
-                className={`group relative rounded-xl border transition-all ${
+                className={`group border-2 p-5 shadow-[6px_6px_0_0_#09090b] transition-transform ${
                   lib.skip
-                    ? 'bg-gray-800/40 border-gray-700 opacity-50'
-                    : 'bg-gray-800/60 border-gray-700 hover:border-gray-600'
+                    ? 'border-zinc-800 bg-zinc-900/60 opacity-60'
+                    : 'border-zinc-800 bg-zinc-900 hover:-translate-y-1 hover:border-red-600'
                 }`}
               >
-                <div className="p-4">
-                  {/* Header */}
-                  <div className="flex items-start justify-between mb-3">
+                <div className="space-y-4">
+                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div className="flex-1">
-                      <h3 className="text-base font-semibold text-white mb-1">{lib.name}</h3>
-                      <div className="flex items-center gap-2">
-                        <span className="text-xs px-2 py-0.5 rounded bg-gray-700 text-gray-300">
+                      <h3 className="text-lg font-black uppercase tracking-widest text-white">{lib.name}</h3>
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        <span className="inline-flex items-center border-2 border-zinc-800 bg-zinc-950 px-2 py-1 text-xs font-mono uppercase tracking-[0.3em] text-zinc-300">
                           {lib.mediaType.replace('_', ' ')}
                         </span>
                         {lib.skip && (
-                          <span className="text-xs px-2 py-0.5 rounded bg-red-900/40 text-red-400">
+                          <span className="inline-flex items-center border-2 border-red-600 bg-red-950 px-2 py-1 text-xs font-mono uppercase tracking-[0.3em] text-red-300">
                             Disabled
                           </span>
                         )}
                       </div>
                     </div>
-                    {/* Toggle Switch */}
+                    {/* Toggle */}
                     <button
                       onClick={() => handleToggleSkip(index)}
                       disabled={saving}
-                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
-                        lib.skip ? 'bg-gray-600' : 'bg-green-600'
+                      className={`border-2 px-3 py-2 text-xs font-black uppercase tracking-[0.3em] transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
+                        lib.skip
+                          ? 'border-green-600 bg-green-950 text-green-300 hover:border-green-500 hover:text-green-200'
+                          : 'border-red-600 bg-red-950 text-red-300 hover:border-red-500 hover:text-red-200'
                       }`}
                       title={lib.skip ? 'Enable library' : 'Disable library'}
                     >
-                      <span
-                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                          lib.skip ? 'translate-x-1' : 'translate-x-6'
-                        }`}
-                      />
+                      {lib.skip ? 'Enable' : 'Disable'}
                     </button>
                   </div>
 
-                  {/* Path */}
-                  <div className="flex items-center gap-2 text-sm text-gray-400 mb-3">
+                  <div className="flex items-center gap-3 text-xs font-mono uppercase tracking-[0.2em] text-zinc-500">
                     <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
                     </svg>
-                    <span className="font-mono text-xs truncate">{lib.path}</span>
+                    <span className="truncate font-mono text-zinc-300 tracking-normal normal-case">{lib.path}</span>
                   </div>
 
-                  {/* Actions */}
-                  <div className="flex gap-2 pt-2 border-t border-gray-700">
+                  <div className="flex flex-col gap-3 border-t-2 border-zinc-800 pt-4 sm:flex-row">
                     <button
                       onClick={() => startEdit(index)}
                       disabled={saving}
-                      className="flex-1 px-3 py-2 bg-gray-700/50 hover:bg-gray-700 text-gray-300 hover:text-white rounded-lg text-sm font-medium transition-all disabled:opacity-50"
+                      className="flex-1 border-2 border-zinc-800 bg-zinc-900 px-3 py-2 text-xs font-black uppercase tracking-[0.3em] text-zinc-300 transition-colors hover:border-zinc-600 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       Edit
                     </button>
                     <button
                       onClick={() => handleDelete(index)}
                       disabled={saving}
-                      className="px-3 py-2 bg-gray-700/50 hover:bg-red-600/20 text-gray-300 hover:text-red-400 rounded-lg text-sm font-medium transition-all disabled:opacity-50"
+                      className="border-2 border-zinc-800 bg-zinc-900 px-3 py-2 text-xs font-black uppercase tracking-[0.3em] text-red-300 transition-colors hover:border-red-600 hover:text-red-200 disabled:cursor-not-allowed disabled:opacity-50"
                     >
                       Delete
                     </button>
@@ -353,28 +363,34 @@ export function LibraryManager() {
 
         {/* Add Form */}
         {showAddForm ? (
-          <div className="bg-gray-800/60 border border-green-600 rounded-xl p-5 space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-base font-semibold text-white">Add New Library</h3>
-              <span className="text-xs px-2 py-1 bg-green-600/20 text-green-400 rounded">New</span>
+          <div className="space-y-5 border-2 border-green-600 bg-zinc-950 p-6 shadow-[6px_6px_0_0_#09090b]">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              <h3 className="text-lg font-black uppercase tracking-widest text-white">Add New Library</h3>
+              <span className="inline-flex items-center border-2 border-green-600 bg-green-950 px-3 py-1 text-xs font-mono uppercase tracking-[0.3em] text-green-300">
+                New
+              </span>
             </div>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid gap-4 md:grid-cols-2">
               <div>
-                <label className="block text-xs font-medium text-gray-400 mb-2">Name</label>
+                <label className="mb-2 block text-xs font-mono uppercase tracking-[0.3em] text-zinc-500">
+                  Name
+                </label>
                 <input
                   type="text"
                   value={formData.name}
                   onChange={(e) => setFormData({ ...formData, name: e.target.value })}
                   placeholder="My Archive"
-                  className="w-full bg-gray-900/50 border border-gray-700 focus:border-green-500 focus:bg-gray-900 rounded-lg px-3 py-2 text-sm outline-none transition-all"
+                  className="w-full border-2 border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-white outline-none transition-all focus:border-green-500 focus:bg-zinc-950"
                 />
               </div>
               <div>
-                <label className="block text-xs font-medium text-gray-400 mb-2">Media Type</label>
+                <label className="mb-2 block text-xs font-mono uppercase tracking-[0.3em] text-zinc-500">
+                  Media Type
+                </label>
                 <select
                   value={formData.mediaType}
                   onChange={(e) => setFormData({ ...formData, mediaType: e.target.value })}
-                  className="w-full bg-gray-900/50 border border-gray-700 focus:border-green-500 focus:bg-gray-900 rounded-lg px-3 py-2 text-sm outline-none transition-all"
+                  className="w-full border-2 border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-white outline-none transition-all focus:border-green-500 focus:bg-zinc-950"
                 >
                   <option value="channel_archive">Channel Archive</option>
                   <option value="liked_videos">Liked Videos</option>
@@ -384,34 +400,38 @@ export function LibraryManager() {
               </div>
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-400 mb-2">Path</label>
+              <label className="mb-2 block text-xs font-mono uppercase tracking-[0.3em] text-zinc-500">
+                Path
+              </label>
               <input
                 type="text"
                 value={formData.path}
                 onChange={(e) => setFormData({ ...formData, path: e.target.value })}
                 placeholder="/path/to/library"
-                className="w-full bg-gray-900/50 border border-gray-700 focus:border-green-500 focus:bg-gray-900 rounded-lg px-3 py-2 text-sm font-mono outline-none transition-all"
+                className="w-full border-2 border-zinc-800 bg-zinc-900 px-3 py-2 text-sm font-mono text-white outline-none transition-all focus:border-green-500 focus:bg-zinc-950"
               />
             </div>
-            <div className="flex items-center gap-2 pt-1">
+            <div className="flex items-center gap-3 pt-1">
               <input
                 type="checkbox"
                 checked={formData.skip || false}
                 onChange={(e) => setFormData({ ...formData, skip: e.target.checked })}
-                className="rounded w-4 h-4 text-green-600"
+                className="h-4 w-4 border-2 border-zinc-700 bg-zinc-900 accent-green-500 focus:ring-0"
               />
-              <label className="text-sm text-gray-300">Skip during scans</label>
+              <label className="text-xs font-mono uppercase tracking-[0.2em] text-zinc-400">
+                Skip during scans
+              </label>
             </div>
-            <div className="flex gap-3 pt-3 border-t border-gray-700">
+            <div className="flex flex-col gap-3 border-t-2 border-zinc-800 pt-4 sm:flex-row">
               <button
                 onClick={handleAdd}
-                className="flex-1 px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg text-sm font-medium transition-colors"
+                className="flex-1 border-2 border-green-600 bg-green-950 px-4 py-3 text-xs font-black uppercase tracking-[0.3em] text-green-200 transition-colors hover:border-green-500 hover:text-green-100"
               >
                 Add Library
               </button>
               <button
                 onClick={cancelEdit}
-                className="px-4 py-2 bg-gray-700/50 hover:bg-gray-700 text-gray-300 hover:text-white rounded-lg text-sm font-medium transition-colors"
+                className="border-2 border-zinc-800 bg-zinc-900 px-4 py-3 text-xs font-black uppercase tracking-[0.3em] text-zinc-300 transition-colors hover:border-zinc-600 hover:text-white"
               >
                 Cancel
               </button>
@@ -420,7 +440,7 @@ export function LibraryManager() {
         ) : (
           <button
             onClick={startAdd}
-            className="w-full p-4 border border-dashed border-gray-700 hover:border-gray-600 hover:bg-gray-800/40 rounded-xl text-gray-400 hover:text-gray-300 transition-all text-sm font-medium flex items-center justify-center gap-2"
+            className="flex w-full items-center justify-center gap-3 border-4 border-dashed border-zinc-800 bg-zinc-950 px-4 py-5 text-xs font-black uppercase tracking-[0.3em] text-zinc-500 transition-colors hover:border-red-600 hover:text-white shadow-[6px_6px_0_0_#09090b]"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
@@ -431,7 +451,9 @@ export function LibraryManager() {
       </div>
 
       {config.libraries.length === 0 && !showAddForm && (
-        <p className="text-gray-400 text-center py-8">No libraries configured</p>
+        <p className="py-8 text-center text-xs font-mono uppercase tracking-[0.3em] text-zinc-500">
+          No libraries configured
+        </p>
       )}
     </div>
   )

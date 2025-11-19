@@ -30,69 +30,82 @@ export function VideoStats() {
 
 	if (loading) {
 		return (
-			<div className='bg-gray-800 rounded-lg p-6'>
-				<h2 className='text-xl font-semibold mb-4'>
+			<div className='border-4 border-zinc-900 bg-zinc-950 p-6 shadow-[10px_10px_0_0_#09090b]'>
+				<p className='text-xs font-mono uppercase tracking-[0.3em] text-zinc-500'>
+					Collection Metrics
+				</p>
+				<h2 className='mt-2 text-lg font-black uppercase tracking-widest text-white'>
 					Video Statistics
 				</h2>
-				<p className='text-gray-400'>Loading...</p>
+				<p className='mt-6 text-xs font-mono uppercase tracking-[0.3em] text-zinc-500'>Loading...</p>
 			</div>
 		);
 	}
 
 	if (error || !stats) {
 		return (
-			<div className='bg-gray-800 rounded-lg p-6'>
-				<h2 className='text-xl font-semibold mb-4'>
+			<div className='border-4 border-zinc-900 bg-zinc-950 p-6 shadow-[10px_10px_0_0_#09090b]'>
+				<p className='text-xs font-mono uppercase tracking-[0.3em] text-zinc-500'>
+					Collection Metrics
+				</p>
+				<h2 className='mt-2 text-lg font-black uppercase tracking-widest text-white'>
 					Video Statistics
 				</h2>
-				<p className='text-red-400'>Error: {error || "No data"}</p>
+				<p className='mt-6 text-xs font-mono uppercase tracking-[0.3em] text-red-400'>
+					Error: {error || "No data"}
+				</p>
 			</div>
 		);
 	}
 
 	return (
-		<div className='bg-gray-800 rounded-lg p-6'>
-			<div className='flex items-center justify-between mb-4'>
-				<h2 className='text-xl font-semibold'>Video Statistics</h2>
+		<div className='border-4 border-zinc-900 bg-zinc-950 p-6 shadow-[10px_10px_0_0_#09090b]'>
+			<div className='mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between'>
+				<div>
+					<p className='text-xs font-mono uppercase tracking-[0.3em] text-zinc-500'>
+						Collection Metrics
+					</p>
+					<h2 className='mt-2 text-lg font-black uppercase tracking-widest text-white'>
+						Video Statistics
+					</h2>
+				</div>
 				<button
 					onClick={loadStats}
-					className='text-sm px-3 py-1 bg-gray-700 hover:bg-gray-600 rounded transition-colors'
+					className='border-2 border-zinc-800 bg-zinc-900 px-3 py-2 text-xs font-black uppercase tracking-[0.3em] text-zinc-300 transition-colors hover:border-red-600 hover:text-white'
 				>
 					Refresh
 				</button>
 			</div>
 			<div className='space-y-6'>
-				<div className='grid grid-cols-1 md:grid-cols-2 gap-4'>
-					{/* Total Videos */}
-					<div className='bg-gradient-to-br from-blue-900/40 to-blue-800/20 border border-blue-700 rounded-lg p-6'>
-						<p className='text-sm text-blue-300 mb-2'>Total Videos</p>
-						<p className='text-4xl font-bold text-white'>
+				<div className='grid grid-cols-1 gap-4 md:grid-cols-2'>
+					<div className='border-2 border-blue-600 bg-zinc-900 p-6 shadow-[6px_6px_0_0_#09090b]'>
+						<p className='text-xs font-mono uppercase tracking-[0.3em] text-blue-300'>Total Videos</p>
+						<p className='mt-3 text-4xl font-black text-white'>
 							{stats.totalVideos}
 						</p>
 					</div>
 
-					{/* Total Size */}
-					<div className='bg-gradient-to-br from-purple-900/40 to-purple-800/20 border border-purple-700 rounded-lg p-6'>
-						<p className='text-sm text-purple-300 mb-2'>Total Size</p>
-						<p className='text-2xl font-bold text-white'>
+					<div className='border-2 border-purple-600 bg-zinc-900 p-6 shadow-[6px_6px_0_0_#09090b]'>
+						<p className='text-xs font-mono uppercase tracking-[0.3em] text-purple-300'>Total Size</p>
+						<p className='mt-3 text-2xl font-black text-white'>
 							{formatBytes(stats.totalSizeBytes)}
 						</p>
 					</div>
 				</div>
-				<div className='bg-gradient-to-br from-green-900/40 to-green-800/20 border border-green-700 rounded-lg p-6'>
-					<p className='text-sm text-green-300 mb-2'>
+				<div className='border-2 border-green-600 bg-zinc-900 p-6 shadow-[6px_6px_0_0_#09090b]'>
+					<p className='text-xs font-mono uppercase tracking-[0.3em] text-green-300'>
 						Videos By Type
 					</p>
-					<div className='space-y-2'>
+					<div className='mt-4 space-y-2'>
 						{stats.byType.map((type) => (
 							<div
 								key={type.mediaType}
-								className='flex justify-between items-center'
+								className='flex items-center justify-between border-2 border-zinc-800 bg-zinc-950 px-3 py-2 text-xs font-mono uppercase tracking-[0.2em]'
 							>
-								<span className='text-sm text-gray-300'>
+								<span className='text-zinc-400'>
 									{mediaTypeHumanReadable(type.mediaType)}
 								</span>
-								<span className='text-lg font-bold text-white'>
+								<span className='text-lg font-black text-white'>
 									{type.count}
 								</span>
 							</div>
