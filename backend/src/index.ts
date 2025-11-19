@@ -13,6 +13,9 @@ import { existsSync } from "fs";
 import scanRoutes from "./routes/scan.js";
 import configRoutes from "./routes/config.js";
 import videoRoutes from "./routes/videos.js";
+import libraryRoutes from "./routes/library.js";
+import streamRoutes from "./routes/stream.js";
+import progressRoutes from "./routes/progress.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -41,6 +44,9 @@ await fastify.register(cors, {
 await fastify.register(scanRoutes, { prefix: "/api/scan" });
 await fastify.register(configRoutes, { prefix: "/api/config" });
 await fastify.register(videoRoutes, { prefix: "/api/videos" });
+await fastify.register(libraryRoutes, { prefix: "/api/library" });
+await fastify.register(streamRoutes, { prefix: "/api/stream" });
+await fastify.register(progressRoutes, { prefix: "/api/progress" });
 
 // Health check
 fastify.get("/api/health", async (request, reply) => {
@@ -115,10 +121,13 @@ const start = async () => {
 
 		console.log("🚀 Backend server is running!");
 		console.log("📍 API Endpoints:");
-		console.log("   Health:  http://localhost:3001/api/health");
-		console.log("   Scan:    http://localhost:3001/api/scan");
-		console.log("   Config:  http://localhost:3001/api/config");
-		console.log("   Videos:  http://localhost:3001/api/videos");
+		console.log("   Health:   http://localhost:3001/api/health");
+		console.log("   Scan:     http://localhost:3001/api/scan");
+		console.log("   Config:   http://localhost:3001/api/config");
+		console.log("   Videos:   http://localhost:3001/api/videos");
+		console.log("   Library:  http://localhost:3001/api/library");
+		console.log("   Stream:   http://localhost:3001/api/stream");
+		console.log("   Progress: http://localhost:3001/api/progress");
 	} catch (err) {
 		fastify.log.error(err);
 		process.exit(1);

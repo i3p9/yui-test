@@ -95,3 +95,84 @@ export const getVideo = (id: string) =>
 	fetchAPI<VideoDetails>(`/videos/${id}`);
 export const getVideoStats = () =>
 	fetchAPI<VideoStats>("/videos/stats/summary");
+
+// Library
+export const getLatestVideos = (params?: { page?: number; limit?: number }) => {
+	const searchParams = new URLSearchParams();
+	if (params) {
+		Object.entries(params).forEach(([key, value]) => {
+			if (value !== undefined) {
+				searchParams.append(key, String(value));
+			}
+		});
+	}
+	const query = searchParams.toString();
+	return fetchAPI<PaginatedVideos>(
+		`/library/latest${query ? `?${query}` : ""}`
+	);
+};
+
+export const getChannels = () =>
+	fetchAPI<{ channels: any[] }>("/library/channels");
+
+export const getChannelVideos = (
+	uploaderId: string,
+	params?: { page?: number; limit?: number; sort?: string }
+) => {
+	const searchParams = new URLSearchParams();
+	if (params) {
+		Object.entries(params).forEach(([key, value]) => {
+			if (value !== undefined) {
+				searchParams.append(key, String(value));
+			}
+		});
+	}
+	const query = searchParams.toString();
+	return fetchAPI<{ channel: any; videos: any[]; pagination: any }>(
+		`/library/channels/${uploaderId}/videos${query ? `?${query}` : ""}`
+	);
+};
+
+export const getLikedVideos = (params?: { page?: number; limit?: number }) => {
+	const searchParams = new URLSearchParams();
+	if (params) {
+		Object.entries(params).forEach(([key, value]) => {
+			if (value !== undefined) {
+				searchParams.append(key, String(value));
+			}
+		});
+	}
+	const query = searchParams.toString();
+	return fetchAPI<PaginatedVideos>(
+		`/library/liked${query ? `?${query}` : ""}`
+	);
+};
+
+export const getRelatedVideos = (videoId: string, limit = 20) =>
+	fetchAPI<{ videos: any[] }>(
+		`/library/video/${videoId}/related?limit=${limit}`
+	);
+
+export const getVideoNavigation = (videoId: string) =>
+	fetchAPI<{ prev: any | null; next: any | null }>(
+		`/library/video/${videoId}/navigation`
+	);
+
+// Streaming
+export const getStreamUrl = (videoId: string) => `/api/stream/${videoId}`;
+export const getThumbnailUrl = (filename: string | null) =>
+	filename ? `/api/stream/thumbnail/${filename}` : null;
+
+// Progress
+export const updateWatchProgress = (
+	videoId: string,
+	positionSeconds: number,
+	durationSeconds?: number
+) =>
+	fetchAPI<{ success: boolean; progress: any }>(`/progress/${videoId}`, {
+		method: "POST",
+		body: JSON.stringify({ positionSeconds, durationSeconds }),
+	});
+
+export const getWatchProgress = (videoId: string) =>
+	fetchAPI<{ progress: any | null }>(`/progress/${videoId}`);

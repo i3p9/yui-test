@@ -1,1 +1,73 @@
 @import "tailwindcss";
+@import "plyr-react/plyr.css";
+
+/* Custom Plyr theming for brutalist design */
+:root {
+  --plyr-color-main: #dc2626; /* red-600 */
+  --plyr-video-background: #000000;
+  --plyr-menu-background: #18181b; /* zinc-900 */
+  --plyr-menu-color: #ffffff;
+  --plyr-control-icon-size: 20px;
+  --plyr-control-spacing: 12px;
+  --plyr-font-family: ui-monospace, monospace;
+}
+
+.plyr {
+  --plyr-color-main: #dc2626;
+}
+
+.plyr__controls {
+  background: linear-gradient(to top, rgba(0, 0, 0, 0.9), transparent);
+  font-family: ui-monospace, monospace;
+}
+
+.plyr__control:hover {
+  background: #dc2626;
+}
+
+.plyr__menu__container {
+  background: #18181b;
+  border: 2px solid #27272a;
+}
+
+.plyr__progress__buffer {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.plyr--full-ui input[type="range"] {
+  color: #dc2626;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+::-webkit-scrollbar-track {
+  background: #18181b;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #27272a;
+  border: 2px solid #18181b;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #3f3f46;
+}
+
+/* Line clamp utilities */
+.line-clamp-2 {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.line-clamp-3 {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
