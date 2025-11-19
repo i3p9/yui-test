@@ -9,9 +9,11 @@ interface VideoCardProps {
     uploadDate: string | null
     durationSeconds: number | null
     thumbnailPath: string | null
-    generatedThumbnail: string | null
+    hasThumbnails?: boolean | null
+    thumbnailSource?: string | null // 'original' | 'extracted' | null
   }
   progress?: number // 0-100 percentage
+  showThumbnailBadge?: boolean // Show badge indicating thumbnail source
 }
 
 function formatDuration(seconds: number | null): string {
@@ -44,8 +46,12 @@ function formatDate(dateString: string | null): string {
   }
 }
 
-export function VideoCard({ video, progress }: VideoCardProps) {
-  const thumbnailUrl = getThumbnailUrl(video.generatedThumbnail || video.thumbnailPath)
+export function VideoCard({ video, progress, showThumbnailBadge = false }: VideoCardProps) {
+  // Always try to get thumbnail - backend handles fallback to original if optimized doesn't exist
+  // Only show placeholder if no thumbnail at all (neither optimized nor original)
+  const thumbnailUrl = (video.hasThumbnails || video.thumbnailPath)
+    ? getThumbnailUrl(video.videoId, 'small')
+    : null
 
   return (
     <Link to={`/watch/${video.videoId}`} className="group block">
@@ -63,6 +69,13 @@ export function VideoCard({ video, progress }: VideoCardProps) {
             <svg className="w-16 h-16 text-zinc-700" fill="currentColor" viewBox="0 0 24 24">
               <path d="M8 5v14l11-7z" />
             </svg>
+          </div>
+        )}
+
+        {/* Thumbnail source badge (optional debug info) */}
+        {showThumbnailBadge && video.thumbnailSource && (
+          <div className="absolute top-2 left-2 bg-black/80 px-2 py-1 text-xs font-bold font-mono border border-zinc-700">
+            {video.thumbnailSource === 'original' ? '📷 IMG' : '🎬 VID'}
           </div>
         )}
 

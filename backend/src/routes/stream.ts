@@ -83,7 +83,68 @@ const streamRoutes: FastifyPluginAsync = async (fastify) => {
     }
   });
 
-  // GET /api/stream/thumbnail/:filename - Serve thumbnail images
+  // GET /api/stream/thumbnail/:videoId/:size - Serve optimized thumbnail with fallback
+  // size can be 'small' or 'large'
+  fastify.get('/thumbnail/:videoId/:size', async (request, reply) => {
+    const { videoId, size } = request.params as { videoId: string; size: string };
+
+    // Validate size parameter
+    if (!['small', 'large'].includes(size)) {
+      return reply.code(400).send({ error: 'Size must be "small" or "large"' });
+    }
+
+    // Load config to get thumbnail directory
+    const config = await loadConfig();
+    const optimizedPath = path.join(
+      config.thumbnailDir,
+      videoId,
+      `thumb_${size}.jpg`
+    );
+
+    // Try to serve optimized thumbnail first
+    if (existsSync(optimizedPath)) {
+      const stat = statSync(optimizedPath);
+      const stream = createReadStream(optimizedPath);
+
+      reply.header('Content-Type', 'image/jpeg');
+      reply.header('Content-Length', stat.size);
+      reply.header('Cache-Control', 'public, max-age=31536000'); // Cache for 1 year
+
+      return reply.send(stream);
+    }
+
+    // Fallback: Try to serve original thumbnail from database
+    const video = await prisma.video.findUnique({
+      where: { videoId },
+      select: { thumbnailPath: true },
+    });
+
+    if (video?.thumbnailPath && existsSync(video.thumbnailPath)) {
+      const ext = path.extname(video.thumbnailPath).toLowerCase();
+      const mimeTypes: Record<string, string> = {
+        '.jpg': 'image/jpeg',
+        '.jpeg': 'image/jpeg',
+        '.png': 'image/png',
+        '.webp': 'image/webp',
+      };
+      const contentType = mimeTypes[ext] || 'image/jpeg';
+
+      const stat = statSync(video.thumbnailPath);
+      const stream = createReadStream(video.thumbnailPath);
+
+      reply.header('Content-Type', contentType);
+      reply.header('Content-Length', stat.size);
+      reply.header('Cache-Control', 'public, max-age=86400'); // Cache for 1 day (shorter since it's original)
+
+      return reply.send(stream);
+    }
+
+    // No thumbnail found
+    return reply.code(404).send({ error: 'Thumbnail not found' });
+  });
+
+  // Legacy endpoint for backwards compatibility (if needed)
+  // GET /api/stream/thumbnail/:filename - Serve thumbnail by filename
   fastify.get('/thumbnail/:filename', async (request, reply) => {
     const { filename } = request.params as { filename: string };
 

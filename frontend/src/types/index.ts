@@ -31,11 +31,20 @@ export interface ScanProgress {
   startedAt?: string
   libraryPath?: string
   mode?: 'full' | 'incremental'
+  phase?: 'scanning' | 'thumbnails' | 'complete'
   currentLibrary?: string
   videosScanned: number
   videosAdded: number
   videosUpdated: number
   errors: string[]
+
+  // Thumbnail generation progress
+  thumbnailsTotal?: number
+  thumbnailsGenerated?: number
+  thumbnailsFailed?: number
+  thumbnailsFromOriginal?: number
+  thumbnailsFromExtraction?: number
+  currentThumbnail?: string
 }
 
 export interface ScanLog {
@@ -68,7 +77,8 @@ export interface Video {
   uploadDate: string | null
   durationSeconds: number | null
   thumbnailPath: string | null
-  generatedThumbnail: string | null
+  hasThumbnails: boolean | null
+  thumbnailSource: string | null // 'original' | 'extracted' | null
   resolution: string | null
   metadataSource: string
   hasCompleteMetadata: boolean

@@ -1,26 +1,79 @@
-node_modules
-npm-debug.log
+# Node modules (will be installed in container)
+node_modules/
+*/node_modules/
+**/node_modules/
+
+# Build outputs
+dist/
+*/dist/
+build/
+*/build/
+
+# Development files
 *.log
-.git
-.gitignore
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Environment files (use docker-compose env instead)
 .env
+.env.local
+.env.*.local
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
 .DS_Store
-.vscode
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+
+# Docker files (don't copy into image)
+docker-compose.yml
+.dockerignore
+
+# Test files
+*.test.ts
+*.test.js
+**/__tests__/
+coverage/
+
+# Documentation (except README)
 *.md
 !README.md
 
-# Backend
-backend/node_modules
-backend/dist
-backend/yui.db
-backend/yui.db-journal
-backend/.env
+# Data directories (will be mounted as volumes)
+data/
+thumbnails/
+.thumbnails/
+config/
 
-# Frontend
-frontend/node_modules
-frontend/dist
-frontend/.vite
+# Temporary files
+tmp/
+temp/
 
-# Thumbnails and data
-.thumbnails
-downloads
+# Frontend development artifacts
+frontend/node_modules/
+frontend/dist/
+frontend/.next/
+
+# Backend development artifacts
+backend/node_modules/
+backend/dist/
+
+# Database files
+*.db
+*.db-journal
+*.db-shm
+*.db-wal
+
+# Prisma temp files
+backend/prisma/migrations/*/migration.sql~

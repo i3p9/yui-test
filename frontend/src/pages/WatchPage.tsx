@@ -21,7 +21,8 @@ interface Video {
   description: string | null
   uploaderId: string | null
   thumbnailPath: string | null
-  generatedThumbnail: string | null
+  hasThumbnails?: boolean | null
+  thumbnailSource?: string | null
 }
 
 interface RelatedVideo extends Video {}
@@ -266,13 +267,9 @@ export function WatchPage() {
               >
                 {/* Thumbnail */}
                 <div className="w-40 aspect-video bg-zinc-900 border-2 border-zinc-800 group-hover:border-red-600 transition-colors flex-shrink-0 overflow-hidden">
-                  {getThumbnailUrl(
-                    relatedVideo.generatedThumbnail || relatedVideo.thumbnailPath
-                  ) ? (
+                  {(relatedVideo.hasThumbnails || relatedVideo.thumbnailPath) ? (
                     <img
-                      src={getThumbnailUrl(
-                        relatedVideo.generatedThumbnail || relatedVideo.thumbnailPath
-                      )!}
+                      src={getThumbnailUrl(relatedVideo.videoId, 'small')}
                       alt={relatedVideo.title}
                       className="w-full h-full object-cover"
                     />

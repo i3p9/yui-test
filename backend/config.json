@@ -5,6 +5,12 @@
       "mediaType": "channel_archive",
       "name": "Channels",
       "skip": false
+    },
+    {
+      "path": "/Users/fahim/Downloads/downloads/liked",
+      "name": "Liked",
+      "mediaType": "liked_videos",
+      "skip": false
     }
   ],
   "thumbnailDir": ".thumbnails",

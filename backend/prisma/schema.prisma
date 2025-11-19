@@ -33,7 +33,10 @@ model Video {
   libraryPath            String      @map("library_path") // Which library root this belongs to
   videoPath              String      @map("video_path") // Full path to the video file
   thumbnailPath          String?     @map("thumbnail_path") // Path to original thumbnail (if exists)
-  generatedThumbnail     String?     @map("generated_thumbnail") // Path to ffmpeg-generated thumbnail
+
+  // Thumbnail generation tracking
+  hasThumbnails          Boolean     @default(false) @map("has_thumbnails") // Do optimized thumbnails exist?
+  thumbnailSource        String?     @map("thumbnail_source") // 'original' | 'extracted' | null
 
   // Technical details
   resolution             String?     // e.g., "1920x1080"

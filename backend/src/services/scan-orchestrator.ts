@@ -6,9 +6,12 @@
 import { Scanner } from "./scanner.js";
 import { MetadataParser } from "./metadata-parser.js";
 import { DatabaseService } from "./database-service.js";
+import { ThumbnailGenerator } from "./thumbnail-generator.js";
 import { loadConfig } from "../lib/config.js";
 import { scanState } from "../lib/scan-state.js";
 import type { ScanResult } from "../types/index.js";
+import type { ThumbnailJob } from "./thumbnail-generator.js";
+import { join } from "path";
 
 export class ScanOrchestrator {
 	private scanner = new Scanner();
@@ -142,6 +145,11 @@ export class ScanOrchestrator {
 			);
 			stats.videosRemoved = removed;
 
+			// PHASE 2: Generate thumbnails if enabled
+			if (config.scanOptions.generateThumbnails) {
+				await this.generateThumbnails(config, options?.libraryPath);
+			}
+
 			await this.db.completeScanLog(scanId, stats);
 
 			scanState.complete();
@@ -176,5 +184,105 @@ export class ScanOrchestrator {
 			select: { videoId: true },
 		});
 		return video !== null;
+	}
+
+	/**
+	 * Generate thumbnails for all videos that need them
+	 */
+	private async generateThumbnails(
+		config: any,
+		libraryPath?: string
+	): Promise<void> {
+		console.log(`\n${"=".repeat(60)}`);
+		console.log("PHASE 2: Generating Thumbnails");
+		console.log("=".repeat(60));
+
+		// Update scan phase
+		scanState.updateProgress({ phase: "thumbnails" });
+
+		const prisma = (this.db as any).prisma;
+
+		// Get all videos that need thumbnails
+		const videos = await prisma.video.findMany({
+			where: {
+				missingOnDisk: false,
+				hasThumbnails: false,
+				...(libraryPath ? { libraryPath } : {}),
+			},
+			select: {
+				videoId: true,
+				videoPath: true,
+				thumbnailPath: true,
+				durationSeconds: true,
+			},
+		});
+
+		if (videos.length === 0) {
+			console.log("No thumbnails to generate - all videos have thumbnails!");
+			return;
+		}
+
+		console.log(`Found ${videos.length} videos needing thumbnails`);
+
+		// Update progress
+		scanState.updateProgress({
+			thumbnailsTotal: videos.length,
+			thumbnailsGenerated: 0,
+			thumbnailsFailed: 0,
+		});
+
+		// Create thumbnail generator
+		const thumbnailDir = join(
+			process.cwd(),
+			config.thumbnailDir || ".thumbnails"
+		);
+		const generator = new ThumbnailGenerator(
+			thumbnailDir,
+			config.scanOptions.thumbnailConcurrency || 2
+		);
+
+		// Prepare jobs
+		const jobs: ThumbnailJob[] = videos.map((video) => ({
+			videoId: video.videoId,
+			videoPath: video.videoPath,
+			existingThumbnailPath: video.thumbnailPath || undefined,
+			durationSeconds: video.durationSeconds || undefined,
+		}));
+
+		// Generate thumbnails with progress tracking (only call once!)
+		const results = await generator.generateBatch(jobs, (progress) => {
+			scanState.updateProgress({
+				thumbnailsGenerated: progress.completed,
+				thumbnailsFailed: progress.failed,
+				thumbnailsFromOriginal: progress.fromOriginal,
+				thumbnailsFromExtraction: progress.fromExtraction,
+				currentThumbnail: progress.current,
+			});
+		});
+
+		// Update database for successful thumbnail generations
+		for (const [videoId, result] of results) {
+			await prisma.video.update({
+				where: { videoId },
+				data: {
+					hasThumbnails: true,
+					thumbnailSource: result.source,
+				},
+			});
+		}
+
+		const finalState = scanState.getState();
+		console.log(`\nThumbnail generation complete!`);
+		console.log(
+			`✓ Generated: ${finalState.thumbnailsGenerated || 0}`
+		);
+		console.log(
+			`  - From original images: ${finalState.thumbnailsFromOriginal || 0}`
+		);
+		console.log(
+			`  - Extracted from video: ${finalState.thumbnailsFromExtraction || 0}`
+		);
+		console.log(`✗ Failed: ${finalState.thumbnailsFailed || 0}`);
+		console.log("=".repeat(60));
 	}
 }

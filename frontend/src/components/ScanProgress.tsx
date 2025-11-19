@@ -92,41 +92,116 @@ export function ScanProgress({
 			</div>
 
 			<div className='space-y-4'>
+				{/* Phase Indicator */}
+				{status.phase && (
+					<div className='bg-gray-700/50 rounded-lg p-3'>
+						<p className='text-sm text-gray-400'>Current Phase</p>
+						<p className='font-medium'>
+							{status.phase === 'scanning' && '🔍 Scanning Media Files'}
+							{status.phase === 'thumbnails' && '🖼️ Generating Thumbnails'}
+							{status.phase === 'complete' && '✅ Complete'}
+						</p>
+					</div>
+				)}
+
 				{/* Current Library */}
-				{status.currentLibrary && (
+				{status.currentLibrary && status.phase === 'scanning' && (
 					<div className='bg-gray-700/50 rounded-lg p-3'>
 						<p className='text-sm text-gray-400'>Current Library</p>
 						<p className='font-medium'>{status.currentLibrary}</p>
 					</div>
 				)}
 
-				{/* Stats Grid */}
-				<div className='grid grid-cols-2 gap-3'>
-					<div className='bg-gray-700/50 rounded-lg p-4'>
-						<p className='text-sm text-gray-400 mb-1'>Scanned</p>
-						<p className='text-2xl font-bold text-blue-400'>
-							{status.videosScanned}
-						</p>
+				{/* Current Thumbnail (during thumbnail phase) */}
+				{status.phase === 'thumbnails' && status.currentThumbnail && (
+					<div className='bg-gray-700/50 rounded-lg p-3'>
+						<p className='text-sm text-gray-400'>Processing</p>
+						<p className='font-medium font-mono text-sm'>{status.currentThumbnail}</p>
 					</div>
-					<div className='bg-gray-700/50 rounded-lg p-4'>
-						<p className='text-sm text-gray-400 mb-1'>Added</p>
-						<p className='text-2xl font-bold text-green-400'>
-							{status.videosAdded}
-						</p>
+				)}
+
+				{/* Stats Grid - Scanning Phase */}
+				{status.phase === 'scanning' && (
+					<div className='grid grid-cols-2 gap-3'>
+						<div className='bg-gray-700/50 rounded-lg p-4'>
+							<p className='text-sm text-gray-400 mb-1'>Scanned</p>
+							<p className='text-2xl font-bold text-blue-400'>
+								{status.videosScanned}
+							</p>
+						</div>
+						<div className='bg-gray-700/50 rounded-lg p-4'>
+							<p className='text-sm text-gray-400 mb-1'>Added</p>
+							<p className='text-2xl font-bold text-green-400'>
+								{status.videosAdded}
+							</p>
+						</div>
+						<div className='bg-gray-700/50 rounded-lg p-4'>
+							<p className='text-sm text-gray-400 mb-1'>Updated</p>
+							<p className='text-2xl font-bold text-yellow-400'>
+								{status.videosUpdated}
+							</p>
+						</div>
+						<div className='bg-gray-700/50 rounded-lg p-4'>
+							<p className='text-sm text-gray-400 mb-1'>Elapsed</p>
+							<p className='text-2xl font-bold text-purple-400'>
+								{formatTime(elapsed)}
+							</p>
+						</div>
 					</div>
-					<div className='bg-gray-700/50 rounded-lg p-4'>
-						<p className='text-sm text-gray-400 mb-1'>Updated</p>
-						<p className='text-2xl font-bold text-yellow-400'>
-							{status.videosUpdated}
-						</p>
+				)}
+
+				{/* Stats Grid - Thumbnail Phase */}
+				{status.phase === 'thumbnails' && (
+					<div className='space-y-3'>
+						{/* Progress Bar */}
+						{status.thumbnailsTotal && status.thumbnailsTotal > 0 && (
+							<div>
+								<div className='flex justify-between text-sm mb-1'>
+									<span className='text-gray-400'>Progress</span>
+									<span className='text-gray-400'>
+										{status.thumbnailsGenerated || 0} / {status.thumbnailsTotal}
+									</span>
+								</div>
+								<div className='w-full bg-gray-700 rounded-full h-2'>
+									<div
+										className='bg-blue-500 h-2 rounded-full transition-all duration-300'
+										style={{
+											width: `${((status.thumbnailsGenerated || 0) / status.thumbnailsTotal) * 100}%`,
+										}}
+									/>
+								</div>
+							</div>
+						)}
+
+						{/* Thumbnail Stats Grid */}
+						<div className='grid grid-cols-2 gap-3'>
+							<div className='bg-gray-700/50 rounded-lg p-4'>
+								<p className='text-sm text-gray-400 mb-1'>📷 From Images</p>
+								<p className='text-2xl font-bold text-green-400'>
+									{status.thumbnailsFromOriginal || 0}
+								</p>
+							</div>
+							<div className='bg-gray-700/50 rounded-lg p-4'>
+								<p className='text-sm text-gray-400 mb-1'>🎬 Extracted</p>
+								<p className='text-2xl font-bold text-blue-400'>
+									{status.thumbnailsFromExtraction || 0}
+								</p>
+							</div>
+							<div className='bg-gray-700/50 rounded-lg p-4'>
+								<p className='text-sm text-gray-400 mb-1'>✗ Failed</p>
+								<p className='text-2xl font-bold text-red-400'>
+									{status.thumbnailsFailed || 0}
+								</p>
+							</div>
+							<div className='bg-gray-700/50 rounded-lg p-4'>
+								<p className='text-sm text-gray-400 mb-1'>Elapsed</p>
+								<p className='text-2xl font-bold text-purple-400'>
+									{formatTime(elapsed)}
+								</p>
+							</div>
+						</div>
 					</div>
-					<div className='bg-gray-700/50 rounded-lg p-4'>
-						<p className='text-sm text-gray-400 mb-1'>Elapsed</p>
-						<p className='text-2xl font-bold text-purple-400'>
-							{formatTime(elapsed)}
-						</p>
-					</div>
-				</div>
+				)}
 
 				{/* Mode and Path */}
 				<div className='flex gap-2 text-sm'>

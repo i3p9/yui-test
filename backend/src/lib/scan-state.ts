@@ -9,11 +9,20 @@ export interface ScanProgress {
   startedAt?: string;
   libraryPath?: string;
   mode?: 'full' | 'incremental';
+  phase?: 'scanning' | 'thumbnails' | 'complete'; // Current phase
   currentLibrary?: string;
   videosScanned: number;
   videosAdded: number;
   videosUpdated: number;
   errors: string[];
+
+  // Thumbnail generation progress
+  thumbnailsTotal?: number;
+  thumbnailsGenerated?: number;
+  thumbnailsFailed?: number;
+  thumbnailsFromOriginal?: number;
+  thumbnailsFromExtraction?: number;
+  currentThumbnail?: string; // Current video ID being processed
 }
 
 class ScanStateManager {
@@ -32,10 +41,16 @@ class ScanStateManager {
       startedAt: new Date().toISOString(),
       libraryPath,
       mode,
+      phase: 'scanning',
       videosScanned: 0,
       videosAdded: 0,
       videosUpdated: 0,
       errors: [],
+      thumbnailsTotal: 0,
+      thumbnailsGenerated: 0,
+      thumbnailsFailed: 0,
+      thumbnailsFromOriginal: 0,
+      thumbnailsFromExtraction: 0,
     };
   }
 

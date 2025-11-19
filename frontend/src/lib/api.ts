@@ -160,7 +160,15 @@ export const getVideoNavigation = (videoId: string) =>
 
 // Streaming
 export const getStreamUrl = (videoId: string) => `/api/stream/${videoId}`;
-export const getThumbnailUrl = (filename: string | null) =>
+
+// Thumbnails - new API using videoId and size
+export const getThumbnailUrl = (
+	videoId: string,
+	size: 'small' | 'large' = 'small'
+) => `/api/stream/thumbnail/${videoId}/${size}`;
+
+// Legacy thumbnail URL (for backwards compatibility)
+export const getLegacyThumbnailUrl = (filename: string | null) =>
 	filename ? `/api/stream/thumbnail/${filename}` : null;
 
 // Progress

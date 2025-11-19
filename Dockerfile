@@ -49,6 +49,10 @@ FROM node:20-alpine
 
 WORKDIR /app
 
+# Install system dependencies
+# - ffmpeg: Required for thumbnail generation from videos
+RUN apk add --no-cache ffmpeg
+
 # Install pnpm
 RUN corepack enable && corepack prepare pnpm@latest --activate
 

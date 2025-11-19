@@ -10,7 +10,8 @@ interface Video {
   uploadDate: string | null
   durationSeconds: number | null
   thumbnailPath: string | null
-  generatedThumbnail: string | null
+  hasThumbnails?: boolean | null
+  thumbnailSource?: string | null
 }
 
 interface Channel {

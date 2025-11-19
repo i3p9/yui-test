@@ -14,37 +14,32 @@ services:
       # Database (persisted)
       - ./data:/data
 
-      # Thumbnails (persisted)
+      # Generated thumbnails (persisted)
+      # Matches thumbnailDir in config.json
       - ./thumbnails:/app/.thumbnails
 
-      # Video libraries (read-only)
-      # Add your video library paths here
+      # Video libraries (read-only - UPDATE THESE PATHS!)
+      # Map your actual video library paths to /media inside the container
+      # Then update config.json libraries to point to /media/...
       # Example:
       # - /Users/fahim/Downloads/downloads:/media:ro
       - /mnt/big/media/youtube:/media:ro
-      # - /path/to/liked/videos:/media/liked:ro
+      # - /path/to/more/videos:/media2:ro
 
     environment:
       - NODE_ENV=production
       - CONFIG_PATH=/config/config.json
       - DATABASE_URL=file:/data/yui.db
+      # Optional: Increase Node.js memory if scanning large libraries
+      # - NODE_OPTIONS=--max-old-space-size=4096
 
     healthcheck:
       test:
         [
-          "CMD",
-          "wget",
-          "--no-verbose",
-          "--tries=1",
-          "--spider",
-          "http://localhost:3001/api/health",
+          "CMD-SHELL",
+          "node -e \"require('http').get('http://localhost:3001/api/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})\"",
         ]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 10s
-
-# Optional: Create named volumes for data persistence
-volumes:
-  yui-data:
-  yui-thumbnails:
+      start_period: 15s
