@@ -203,7 +203,7 @@ export class ScanOrchestrator {
 		const prisma = (this.db as any).prisma;
 
 		// Get all videos that need thumbnails
-		const videos = await prisma.video.findMany({
+		const videos = (await prisma.video.findMany({
 			where: {
 				missingOnDisk: false,
 				hasThumbnails: false,
@@ -215,7 +215,12 @@ export class ScanOrchestrator {
 				thumbnailPath: true,
 				durationSeconds: true,
 			},
-		});
+		})) as Array<{
+			videoId: string;
+			videoPath: string;
+			thumbnailPath: string | null;
+			durationSeconds: number | null;
+		}>;
 
 		if (videos.length === 0) {
 			console.log("No thumbnails to generate - all videos have thumbnails!");
