@@ -20,8 +20,8 @@ services:
       # Video libraries (read-only)
       # Add your video library paths here
       # Example:
-      - /Users/fahim/Downloads/downloads:/media:ro
-      #- /mnt/big/media/youtube:/media:ro
+      # - /Users/fahim/Downloads/downloads:/media:ro
+      - /mnt/big/media/youtube:/media:ro
       # - /path/to/liked/videos:/media/liked:ro
 
     environment:
