@@ -4,8 +4,12 @@
 // Walks directory trees and finds video files
 
 import { readdir, stat, access, readFile } from "fs/promises";
-import { join, basename } from "path";
-import type { VideoCandidate, Library, ChannelOverrides } from "../types/index.js";
+import { join, basename, dirname, resolve } from "path";
+import type {
+	VideoCandidate,
+	Library,
+	ChannelOverrides,
+} from "../types/index.js";
 
 // ============================================
 // FILESYSTEM I/O CONCEPTS
@@ -85,7 +89,9 @@ async function hasIgnoreMarker(dirPath: string): Promise<boolean> {
 }
 
 // Read and parse overrides.txt file from channel root
-async function readChannelOverrides(dirPath: string): Promise<ChannelOverrides | null> {
+async function readChannelOverrides(
+	dirPath: string
+): Promise<ChannelOverrides | null> {
 	try {
 		const overridesPath = join(dirPath, "overrides.txt");
 		await access(overridesPath);
@@ -117,8 +123,13 @@ export class Scanner {
 	async *walkLibrary(
 		rootPath: string
 	): AsyncGenerator<VideoCandidate> {
+		// Normalize the root path to ensure consistent comparisons
+		const normalizedRootPath = resolve(rootPath);
+
 		// Stack now stores [path, overrides] tuples
-		const stack: Array<[string, ChannelOverrides | null]> = [[rootPath, null]];
+		const stack: Array<[string, ChannelOverrides | null]> = [
+			[normalizedRootPath, null],
+		];
 
 		while (stack.length > 0) {
 			// console.log("stack: ", stack);
@@ -134,13 +145,20 @@ export class Scanner {
 			// Check if this is a channel root (immediate child of library root)
 			// and read overrides.txt if present
 			let overrides = currentOverrides;
-			if (basename(currentPath) !== basename(rootPath)) {
-				const parentPath = join(currentPath, "..");
-				if (parentPath === rootPath && !currentOverrides) {
-					// This is a channel root, check for overrides
-					overrides = await readChannelOverrides(currentPath);
-				}
+			const parentPath = dirname(currentPath);
+
+			// Debug logging
+			console.log(`Checking path: ${currentPath}`);
+			console.log(`  Parent: ${parentPath}`);
+			console.log(`  Root: ${normalizedRootPath}`);
+			console.log(`  Is channel root? ${parentPath === normalizedRootPath}`);
+
+			if (parentPath === normalizedRootPath && !currentOverrides) {
+				// This is a channel root, check for overrides
+				console.log(`  Reading overrides for channel: ${basename(currentPath)}`);
+				overrides = await readChannelOverrides(currentPath);
 			}
+			console.log(`  Active overrides:`, overrides);
 
 			// Read directory contents
 			let entries;
