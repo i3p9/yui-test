@@ -7,6 +7,7 @@ import cors from "@fastify/cors";
 import fastifyStatic from "@fastify/static";
 import path from "path";
 import { fileURLToPath } from "url";
+import { existsSync } from "fs";
 
 // Import routes
 import scanRoutes from "./routes/scan.js";
@@ -50,21 +51,58 @@ fastify.get("/api/health", async (request, reply) => {
 	};
 });
 
-// Serve frontend static files in production
-const frontendDist = path.join(__dirname, "../../frontend/dist");
-await fastify.register(fastifyStatic, {
-	root: frontendDist,
-	prefix: "/",
-	// Serve index.html for all non-API routes (SPA fallback)
-	decorateReply: false,
-});
+// Serve frontend static files in production (only if dist exists)
+// Try multiple possible paths to handle both dev and Docker environments
+const possiblePaths = [
+	path.resolve(__dirname, "../../frontend/dist"), // Dev: backend/dist -> frontend/dist
+	path.resolve(__dirname, "../frontend/dist"), // Alternative: backend/dist -> frontend/dist (one level up)
+	path.resolve(process.cwd(), "frontend/dist"), // From project root
+	"/app/frontend/dist", // Docker absolute path
+];
+
+let frontendDist: string | null = null;
+let frontendAvailable = false;
+
+// Find the first existing path
+for (const possiblePath of possiblePaths) {
+	if (existsSync(possiblePath)) {
+		frontendDist = possiblePath;
+		break;
+	}
+}
+
+if (frontendDist) {
+	await fastify.register(fastifyStatic, {
+		root: frontendDist,
+		prefix: "/",
+		// Serve index.html for all non-API routes (SPA fallback)
+	});
+	frontendAvailable = true;
+	fastify.log.info(
+		`Frontend static files enabled from: ${frontendDist}`
+	);
+} else {
+	fastify.log.warn(
+		`Frontend dist directory not found. Tried: ${possiblePaths.join(
+			", "
+		)}. Frontend will not be served. Build the frontend first.`
+	);
+}
 
 // SPA fallback - serve index.html for all non-API routes
 fastify.setNotFoundHandler((request, reply) => {
 	if (request.url.startsWith("/api/")) {
 		reply.code(404).send({ error: "Not found" });
-	} else {
+	} else if (frontendAvailable) {
+		// Only try to serve index.html if frontend is available
 		reply.sendFile("index.html");
+	} else {
+		// Frontend not built - return helpful message
+		reply.code(404).send({
+			error: "Frontend not available",
+			message:
+				"Frontend has not been built. Please build the frontend first.",
+		});
 	}
 });
 

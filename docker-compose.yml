@@ -1,4 +1,4 @@
-version: '3.8'
+version: "3.8"
 
 services:
   yui:
@@ -20,7 +20,8 @@ services:
       # Video libraries (read-only)
       # Add your video library paths here
       # Example:
-      - /:/media/archive:ro
+      - /Users/fahim/Downloads/downloads:/media:ro
+      #- /mnt/big/media/youtube:/media:ro
       # - /path/to/liked/videos:/media/liked:ro
 
     environment:
@@ -29,7 +30,15 @@ services:
       - DATABASE_URL=file:/data/yui.db
 
     healthcheck:
-      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3001/api/health"]
+      test:
+        [
+          "CMD",
+          "wget",
+          "--no-verbose",
+          "--tries=1",
+          "--spider",
+          "http://localhost:3001/api/health",
+        ]
       interval: 30s
       timeout: 10s
       retries: 3

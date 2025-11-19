@@ -1,0 +1,18 @@
+{
+  "libraries": [
+    {
+      "path": "/Users/fahim/Downloads/downloads/channels",
+      "mediaType": "channel_archive",
+      "name": "Channels",
+      "skip": false
+    }
+  ],
+  "thumbnailDir": ".thumbnails",
+  "databaseUrl": "file:../yui.db",
+  "scanOptions": {
+    "parallelism": 4,
+    "followSymlinks": false,
+    "generateThumbnails": true,
+    "thumbnailConcurrency": 2
+  }
+}
