@@ -3,9 +3,9 @@
 // ============================================
 // Walks directory trees and finds video files
 
-import { readdir, stat, access } from "fs/promises";
+import { readdir, stat, access, readFile } from "fs/promises";
 import { join, basename } from "path";
-import type { VideoCandidate, Library } from "../types/index.js";
+import type { VideoCandidate, Library, ChannelOverrides } from "../types/index.js";
 
 // ============================================
 // FILESYSTEM I/O CONCEPTS
@@ -84,6 +84,20 @@ async function hasIgnoreMarker(dirPath: string): Promise<boolean> {
 	}
 }
 
+// Read and parse overrides.txt file from channel root
+async function readChannelOverrides(dirPath: string): Promise<ChannelOverrides | null> {
+	try {
+		const overridesPath = join(dirPath, "overrides.txt");
+		await access(overridesPath);
+		const content = await readFile(overridesPath, "utf-8");
+		const overrides = JSON.parse(content);
+		console.log(`Found channel overrides in ${dirPath}:`, overrides);
+		return overrides;
+	} catch {
+		return null; // File doesn't exist or invalid JSON
+	}
+}
+
 // ============================================
 // MAIN SCANNER CLASS
 // ============================================
@@ -95,24 +109,37 @@ export class Scanner {
 	 * Algorithm:
 	 * 1. Use a stack-based depth-first traversal (not recursive to avoid stack overflow)
 	 * 2. Check for .ignore markers before descending
-	 * 3. Identify video containers (directories with media files)
-	 * 4. Identify loose video files with YouTube IDs
-	 * 5. Yield candidates as we find them (async generator pattern)
+	 * 3. Check for overrides.txt at channel root level
+	 * 4. Identify video containers (directories with media files)
+	 * 5. Identify loose video files with YouTube IDs
+	 * 6. Yield candidates as we find them (async generator pattern)
 	 */
 	async *walkLibrary(
 		rootPath: string
 	): AsyncGenerator<VideoCandidate> {
-		const stack: string[] = [rootPath];
+		// Stack now stores [path, overrides] tuples
+		const stack: Array<[string, ChannelOverrides | null]> = [[rootPath, null]];
 
 		while (stack.length > 0) {
 			// console.log("stack: ", stack);
-			const currentPath = stack.pop()!;
+			const [currentPath, currentOverrides] = stack.pop()!;
 			// console.log("currentPath: ", currentPath);
 
 			// Check for .ignore marker - skip this directory if found
 			if (await hasIgnoreMarker(currentPath)) {
 				console.log(`Skipping ignored directory: ${currentPath}`);
 				continue;
+			}
+
+			// Check if this is a channel root (immediate child of library root)
+			// and read overrides.txt if present
+			let overrides = currentOverrides;
+			if (basename(currentPath) !== basename(rootPath)) {
+				const parentPath = join(currentPath, "..");
+				if (parentPath === rootPath && !currentOverrides) {
+					// This is a channel root, check for overrides
+					overrides = await readChannelOverrides(currentPath);
+				}
 			}
 
 			// Read directory contents
@@ -154,6 +181,7 @@ export class Scanner {
 						type: "directory",
 						path: currentPath,
 						files: files,
+						overrides: overrides || undefined,
 					};
 
 					// Don't descend into canonical video folders
@@ -189,13 +217,14 @@ export class Scanner {
 					path: currentPath,
 					files: relatedFiles,
 					videoId: videoId,
+					overrides: overrides || undefined,
 				};
 			}
 
 			//add subdirs for travarsal
 			for (let i = dirs.length - 1; i >= 0; i--) {
 				//reverse to keep original order
-				stack.push(join(currentPath, dirs[i]));
+				stack.push([join(currentPath, dirs[i]), overrides]);
 			}
 		}
 	}

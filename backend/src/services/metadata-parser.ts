@@ -11,6 +11,7 @@ import type {
 	InfoJson,
 	SubtitleInfo,
 	Library,
+	ChannelOverrides,
 } from "../types/index.js";
 import {
 	extractYouTubeId,
@@ -77,8 +78,8 @@ export class MetadataParser {
 
 			// Build metadata from info.json or filename
 			const metadata = infoJson
-				? this.parseFromInfoJson(infoJson, videoId, videoPath)
-				: this.parseFromFilename(mediaFile, videoId, videoPath);
+				? this.parseFromInfoJson(infoJson, videoId, videoPath, candidate.overrides)
+				: this.parseFromFilename(mediaFile, videoId, videoPath, candidate.overrides);
 
 			return {
 				...metadata,
@@ -121,7 +122,8 @@ export class MetadataParser {
 	private parseFromInfoJson(
 		info: InfoJson,
 		videoId: string,
-		videoPath: string
+		videoPath: string,
+		overrides?: ChannelOverrides
 	): Omit<
 		ParsedMetadata,
 		| "videoPath"
@@ -134,11 +136,15 @@ export class MetadataParser {
 		| "libraryPath"
 		| "mediaType"
 	> {
+		// Apply overrides only when info.json doesn't have the field (info.json has highest priority)
+		const uploader = info.uploader || overrides?.force_channel_name || overrides?.force_uploader;
+		const uploaderId = info.channel_id || overrides?.force_channel_id;
+
 		return {
 			videoId,
 			title: info.title || `Video ${videoId}`,
-			uploader: info.uploader,
-			uploaderId: info.channel_id,
+			uploader,
+			uploaderId,
 			uploadDate: this.normalizeDate(info.upload_date),
 			durationSeconds: info.duration,
 			description: info.description,
@@ -158,7 +164,8 @@ export class MetadataParser {
 	private parseFromFilename(
 		filename: string,
 		videoId: string,
-		videoPath: string
+		videoPath: string,
+		overrides?: ChannelOverrides
 	): Omit<
 		ParsedMetadata,
 		| "videoPath"
@@ -187,9 +194,15 @@ export class MetadataParser {
 				.replace(/^[\s-]+/, "");
 		}
 
+		// Apply overrides (always, since filename parsing doesn't have channel info)
+		const uploader = overrides?.force_channel_name || overrides?.force_uploader;
+		const uploaderId = overrides?.force_channel_id;
+
 		return {
 			videoId,
 			title: cleaned || `Video ${videoId}`,
+			uploader,
+			uploaderId,
 			uploadDate,
 			metadataSource: "filename",
 			hasCompleteMetadata: false,

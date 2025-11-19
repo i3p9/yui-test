@@ -28,11 +28,19 @@ export interface ScanResult {
 	duration: number;
 }
 
+export interface ChannelOverrides {
+	force_channel_name?: string;
+	force_channel_id?: string;
+	force_uploader?: string;
+	[key: string]: any; // Allow extensibility for future fields
+}
+
 export interface VideoCandidate {
 	type: "directory" | "loose";
 	path: string;
 	files: string[];
 	videoId?: string;
+	overrides?: ChannelOverrides;
 }
 
 export interface ParsedMetadata {
