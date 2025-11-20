@@ -51,7 +51,9 @@ WORKDIR /app
 
 # Install system dependencies
 # - ffmpeg: Required for thumbnail generation from videos
-RUN apk add --no-cache ffmpeg
+# - yt-dlp: Required for fetching metadata from YouTube
+# - python3: Required by yt-dlp
+RUN apk add --no-cache ffmpeg yt-dlp python3
 
 # Install pnpm
 RUN corepack enable && corepack prepare pnpm@latest --activate

@@ -33,6 +33,7 @@ model Video {
   libraryPath            String      @map("library_path") // Which library root this belongs to
   videoPath              String      @map("video_path") // Full path to the video file
   thumbnailPath          String?     @map("thumbnail_path") // Path to original thumbnail (if exists)
+  infoJsonPath           String?     @map("info_json_path") // Path to info.json file (original or fetched)
 
   // Thumbnail generation tracking
   hasThumbnails          Boolean     @default(false) @map("has_thumbnails") // Do optimized thumbnails exist?

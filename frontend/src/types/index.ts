@@ -16,12 +16,15 @@ export interface Library {
 export interface Config {
   libraries: Library[]
   thumbnailDir: string
+  metadataDir: string
   databaseUrl: string
   scanOptions: {
     parallelism: number
     followSymlinks: boolean
     generateThumbnails: boolean
     thumbnailConcurrency: number
+    fetchMetadata: boolean
+    metadataConcurrency: number
   }
 }
 
@@ -31,7 +34,7 @@ export interface ScanProgress {
   startedAt?: string
   libraryPath?: string
   mode?: 'full' | 'incremental'
-  phase?: 'scanning' | 'thumbnails' | 'complete'
+  phase?: 'scanning' | 'thumbnails' | 'metadata' | 'complete'
   currentLibrary?: string
   videosScanned: number
   videosAdded: number
@@ -45,6 +48,13 @@ export interface ScanProgress {
   thumbnailsFromOriginal?: number
   thumbnailsFromExtraction?: number
   currentThumbnail?: string
+
+  // Metadata fetching progress
+  metadataTotal?: number
+  metadataFetched?: number
+  metadataFailed?: number
+  metadataThumbnailsFetched?: number
+  currentMetadata?: string
 }
 
 export interface ScanLog {
@@ -132,4 +142,20 @@ export interface PaginatedVideos {
     total: number
     pages: number
   }
+}
+
+export interface MetadataStats {
+  incompleteWithVideoId: number
+  incompleteTotal: number
+  fromFilename: number
+}
+
+export interface MetadataFetchStatus {
+  isRunning: boolean
+  phase?: string
+  metadataTotal?: number
+  metadataFetched?: number
+  metadataFailed?: number
+  metadataThumbnailsFetched?: number
+  currentMetadata?: string
 }

@@ -79,10 +79,14 @@ yui/
 │   └── config.json
 ├── data/            # SQLite database (auto-created)
 │   └── yui.db
-└── thumbnails/      # Generated thumbnails (auto-created)
+├── thumbnails/      # Generated thumbnails (auto-created)
+│   └── {videoId}/
+│       ├── thumb_small.jpg
+│       └── thumb_large.jpg
+└── metadata/        # Fetched metadata (auto-created)
     └── {videoId}/
-        ├── thumb_small.jpg
-        └── thumb_large.jpg
+        ├── info.json
+        └── {videoId}.webp
 ```
 
 ## 🔄 Database Migrations
@@ -138,6 +142,25 @@ Thumbnails are generated automatically during scans:
 - **From original images**: Resizes existing `.webp`, `.jpg`, `.png` files
 - **From video frames**: Extracts frames using ffmpeg if no thumbnail exists
 
+## 📊 Metadata Fetching
+
+The Docker image includes **yt-dlp** for fetching missing metadata from YouTube.
+
+On startup, the entrypoint script checks:
+```
+✓ yt-dlp available (2024.11.04)
+```
+
+Metadata fetching can be triggered:
+- **Manually**: From the Config page UI, click "Fetch Missing Metadata"
+- **During scans**: Enable `fetchMetadata: true` in config.json
+
+What gets fetched:
+- **info.json**: Complete video metadata (title, uploader, description, etc.)
+- **Thumbnails**: Original YouTube thumbnails (if missing or extracted via ffmpeg)
+
+Fetched metadata is saved to `./metadata/{videoId}/` for easy access and portability.
+
 ## ⚙️ Configuration
 
 ### Environment Variables
@@ -167,12 +190,15 @@ Edit `config/config.json`:
     }
   ],
   "thumbnailDir": "/app/.thumbnails", // Where to store generated thumbnails
+  "metadataDir": "/app/.metadata",    // Where to store fetched metadata
   "databaseUrl": "file:/data/yui.db", // Database path (matches volume)
   "scanOptions": {
     "parallelism": 4,                 // Concurrent file scans
     "followSymlinks": false,          // Follow symbolic links?
     "generateThumbnails": true,       // Auto-generate thumbnails?
-    "thumbnailConcurrency": 2         // Concurrent ffmpeg processes
+    "thumbnailConcurrency": 2,        // Concurrent ffmpeg processes
+    "fetchMetadata": false,           // Auto-fetch missing metadata?
+    "metadataConcurrency": 2          // Concurrent yt-dlp processes
   }
 }
 ```
@@ -215,6 +241,20 @@ Check if ffmpeg is available:
 docker-compose exec yui ffmpeg -version
 ```
 
+### Metadata Fetching Not Working?
+
+Check if yt-dlp is available:
+
+```bash
+docker-compose exec yui yt-dlp --version
+```
+
+Test metadata fetching manually:
+
+```bash
+docker-compose exec yui yt-dlp --write-info-json --skip-download "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+```
+
 ### Permission Issues
 
 Ensure Docker has read access to your video library:
@@ -252,8 +292,11 @@ cp data/yui.db data/yui.db.backup
 # Backup config
 cp config/config.json config/config.json.backup
 
-# Backup is optional - thumbnails can be regenerated
+# Optional: Backup thumbnails (can be regenerated)
 tar -czf thumbnails-backup.tar.gz thumbnails/
+
+# Optional: Backup fetched metadata (can be re-fetched from YouTube)
+tar -czf metadata-backup.tar.gz metadata/
 ```
 
 ### View Resource Usage
@@ -329,6 +372,7 @@ Use cron to trigger scans:
 - [Prisma Migrations Guide](https://www.prisma.io/docs/guides/migrate)
 - [Docker Compose Reference](https://docs.docker.com/compose/)
 - [FFmpeg Documentation](https://ffmpeg.org/documentation.html)
+- [yt-dlp Documentation](https://github.com/yt-dlp/yt-dlp#readme)
 
 ## 🆘 Getting Help
 

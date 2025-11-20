@@ -16,12 +16,15 @@ const ConfigSchema = z.object({
 		})
 	),
 	thumbnailDir: z.string(),
+	metadataDir: z.string(),
 	databaseUrl: z.string(),
 	scanOptions: z.object({
 		parallelism: z.number(),
 		followSymlinks: z.boolean(),
 		generateThumbnails: z.boolean(),
 		thumbnailConcurrency: z.number(),
+		fetchMetadata: z.boolean(),
+		metadataConcurrency: z.number(),
 	}),
 });
 
@@ -32,12 +35,15 @@ function getDefaultConfig(): Config {
 	return {
 		libraries: [],
 		thumbnailDir: ".thumbnails",
+		metadataDir: ".metadata",
 		databaseUrl: process.env.DATABASE_URL || "file:/data/yui.db",
 		scanOptions: {
 			parallelism: 4,
 			followSymlinks: false,
 			generateThumbnails: true,
 			thumbnailConcurrency: 2,
+			fetchMetadata: false,
+			metadataConcurrency: 2,
 		},
 	};
 }
@@ -89,6 +95,18 @@ export async function loadConfig(): Promise<Config> {
 	try {
 		const configFile = await readFile(configPath, "utf-8");
 		const configData = JSON.parse(configFile);
+
+		// Add defaults for new fields (backward compatibility)
+		if (!configData.metadataDir) {
+			configData.metadataDir = ".metadata";
+		}
+		if (!configData.scanOptions.fetchMetadata) {
+			configData.scanOptions.fetchMetadata = false;
+		}
+		if (!configData.scanOptions.metadataConcurrency) {
+			configData.scanOptions.metadataConcurrency = 2;
+		}
+
 		const validated = ConfigSchema.parse(configData);
 
 		cachedConfig = validated as Config;

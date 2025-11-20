@@ -18,6 +18,10 @@ services:
       # Matches thumbnailDir in config.json
       - ./thumbnails:/app/.thumbnails
 
+      # Fetched metadata (persisted)
+      # Matches metadataDir in config.json
+      - ./metadata:/app/.metadata
+
       # Video libraries (read-only - UPDATE THESE PATHS!)
       # Map your actual video library paths to /media inside the container
       # Then update config.json libraries to point to /media/...

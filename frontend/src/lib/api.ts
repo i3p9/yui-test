@@ -8,6 +8,8 @@ import type {
 	// Video,
 	VideoDetails,
 	PaginatedVideos,
+	MetadataStats,
+	MetadataFetchStatus,
 } from "../types";
 
 const API_BASE = "/api";
@@ -184,3 +186,16 @@ export const updateWatchProgress = (
 
 export const getWatchProgress = (videoId: string) =>
 	fetchAPI<{ progress: any | null }>(`/progress/${videoId}`);
+
+// Metadata
+export const getMetadataStats = () =>
+	fetchAPI<MetadataStats>("/metadata/stats");
+
+export const startMetadataFetch = (videoIds?: string[]) =>
+	fetchAPI<{ message: string; count: number }>("/metadata/fetch", {
+		method: "POST",
+		body: JSON.stringify({ videoIds }),
+	});
+
+export const getMetadataFetchStatus = () =>
+	fetchAPI<MetadataFetchStatus>("/metadata/status");

@@ -9,7 +9,7 @@ export interface ScanProgress {
   startedAt?: string;
   libraryPath?: string;
   mode?: 'full' | 'incremental';
-  phase?: 'scanning' | 'thumbnails' | 'complete'; // Current phase
+  phase?: 'scanning' | 'thumbnails' | 'metadata' | 'complete'; // Current phase
   currentLibrary?: string;
   videosScanned: number;
   videosAdded: number;
@@ -23,6 +23,13 @@ export interface ScanProgress {
   thumbnailsFromOriginal?: number;
   thumbnailsFromExtraction?: number;
   currentThumbnail?: string; // Current video ID being processed
+
+  // Metadata fetching progress
+  metadataTotal?: number;
+  metadataFetched?: number;
+  metadataFailed?: number;
+  metadataThumbnailsFetched?: number;
+  currentMetadata?: string; // Current video ID being processed
 }
 
 class ScanStateManager {
@@ -51,6 +58,10 @@ class ScanStateManager {
       thumbnailsFailed: 0,
       thumbnailsFromOriginal: 0,
       thumbnailsFromExtraction: 0,
+      metadataTotal: 0,
+      metadataFetched: 0,
+      metadataFailed: 0,
+      metadataThumbnailsFetched: 0,
     };
   }
 

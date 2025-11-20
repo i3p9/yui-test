@@ -112,6 +112,7 @@ export function ScanProgress({
 						<p className='mt-2 text-base font-black text-white'>
 							{status.phase === "scanning" && "🔍 Scanning Media Files"}
 							{status.phase === "thumbnails" && "🖼️ Generating Thumbnails"}
+							{status.phase === "metadata" && "📊 Fetching Metadata"}
 							{status.phase === "complete" && "✅ Complete"}
 						</p>
 					</div>
@@ -128,6 +129,13 @@ export function ScanProgress({
 					<div className='border-2 border-zinc-800 bg-zinc-900 px-4 py-4'>
 						<p className='text-xs font-mono uppercase tracking-[0.3em] text-zinc-500'>Processing</p>
 						<p className='mt-2 font-mono text-sm text-zinc-200'>{status.currentThumbnail}</p>
+					</div>
+				)}
+
+				{status.phase === "metadata" && status.currentMetadata && (
+					<div className='border-2 border-zinc-800 bg-zinc-900 px-4 py-4'>
+						<p className='text-xs font-mono uppercase tracking-[0.3em] text-zinc-500'>Fetching</p>
+						<p className='mt-2 font-mono text-sm text-zinc-200'>{status.currentMetadata}</p>
 					</div>
 				)}
 
@@ -190,6 +198,56 @@ export function ScanProgress({
 								<p className='text-xs font-mono uppercase tracking-[0.3em] text-zinc-500'>✗ Failed</p>
 								<p className='mt-3 text-3xl font-black text-red-400'>
 									{status.thumbnailsFailed || 0}
+								</p>
+							</div>
+							<div className='border-2 border-zinc-800 bg-zinc-900 px-4 py-4'>
+								<p className='text-xs font-mono uppercase tracking-[0.3em] text-zinc-500'>Elapsed</p>
+								<p className='mt-3 text-3xl font-black text-purple-400'>
+									{formatTime(elapsed)}
+								</p>
+							</div>
+						</div>
+					</div>
+				)}
+
+				{status.phase === "metadata" && (
+					<div className='space-y-4'>
+						{status.metadataTotal && status.metadataTotal > 0 && (
+							<div className='border-2 border-zinc-800 bg-zinc-900 px-4 py-4'>
+								<div className='mb-3 flex justify-between text-xs font-mono uppercase tracking-[0.3em] text-zinc-500'>
+									<span>Progress</span>
+									<span>
+										{status.metadataFetched || 0} / {status.metadataTotal}
+									</span>
+								</div>
+								<div className='h-2 border-2 border-zinc-800 bg-zinc-950'>
+									<div
+										className='h-full bg-cyan-500 transition-all duration-300'
+										style={{
+											width: `${((status.metadataFetched || 0) / status.metadataTotal) * 100}%`,
+										}}
+									/>
+								</div>
+							</div>
+						)}
+
+						<div className='grid grid-cols-2 gap-4'>
+							<div className='border-2 border-zinc-800 bg-zinc-900 px-4 py-4'>
+								<p className='text-xs font-mono uppercase tracking-[0.3em] text-zinc-500'>✓ Fetched</p>
+								<p className='mt-3 text-3xl font-black text-green-400'>
+									{status.metadataFetched || 0}
+								</p>
+							</div>
+							<div className='border-2 border-zinc-800 bg-zinc-900 px-4 py-4'>
+								<p className='text-xs font-mono uppercase tracking-[0.3em] text-zinc-500'>🖼️ Thumbs</p>
+								<p className='mt-3 text-3xl font-black text-blue-400'>
+									{status.metadataThumbnailsFetched || 0}
+								</p>
+							</div>
+							<div className='border-2 border-zinc-800 bg-zinc-900 px-4 py-4'>
+								<p className='text-xs font-mono uppercase tracking-[0.3em] text-zinc-500'>✗ Failed</p>
+								<p className='mt-3 text-3xl font-black text-red-400'>
+									{status.metadataFailed || 0}
 								</p>
 							</div>
 							<div className='border-2 border-zinc-800 bg-zinc-900 px-4 py-4'>

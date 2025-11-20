@@ -4,6 +4,7 @@ import { ScanControls } from '../components/ScanControls'
 import { ScanProgress } from '../components/ScanProgress'
 import { ScanHistory } from '../components/ScanHistory'
 import { VideoStats } from '../components/VideoStats'
+import MetadataManager from '../components/MetadataManager'
 
 export function ConfigurePage() {
   const [isScanning, setIsScanning] = useState(false)
@@ -55,6 +56,7 @@ export function ConfigurePage() {
             onStatusChange={setIsScanning}
           />
           <VideoStats key={`stats-${refreshKey}`} />
+          <MetadataManager key={`metadata-${refreshKey}`} />
         </div>
 
         <div className="space-y-8">

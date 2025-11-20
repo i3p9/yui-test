@@ -13,6 +13,13 @@ else
     echo "✓ ffmpeg available ($(ffmpeg -version | head -n1))"
 fi
 
+# Check if yt-dlp is available (required for metadata fetching)
+if ! command -v yt-dlp >/dev/null 2>&1; then
+    echo "⚠️  WARNING: yt-dlp not found - metadata fetching will fail"
+else
+    echo "✓ yt-dlp available ($(yt-dlp --version))"
+fi
+
 # Check if config exists
 if [ -n "$CONFIG_PATH" ] && [ -f "$CONFIG_PATH" ]; then
     echo "✓ Config file found at: $CONFIG_PATH"

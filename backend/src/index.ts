@@ -16,6 +16,7 @@ import videoRoutes from "./routes/videos.js";
 import libraryRoutes from "./routes/library.js";
 import streamRoutes from "./routes/stream.js";
 import progressRoutes from "./routes/progress.js";
+import metadataRoutes from "./routes/metadata.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -47,6 +48,7 @@ await fastify.register(videoRoutes, { prefix: "/api/videos" });
 await fastify.register(libraryRoutes, { prefix: "/api/library" });
 await fastify.register(streamRoutes, { prefix: "/api/stream" });
 await fastify.register(progressRoutes, { prefix: "/api/progress" });
+await fastify.register(metadataRoutes, { prefix: "/api/metadata" });
 
 // Health check
 fastify.get("/api/health", async (request, reply) => {
@@ -128,6 +130,7 @@ const start = async () => {
 		console.log("   Library:  http://localhost:3001/api/library");
 		console.log("   Stream:   http://localhost:3001/api/stream");
 		console.log("   Progress: http://localhost:3001/api/progress");
+		console.log("   Metadata: http://localhost:3001/api/metadata");
 	} catch (err) {
 		fastify.log.error(err);
 		process.exit(1);

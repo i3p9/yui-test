@@ -1,6 +1,7 @@
 export interface Config {
 	libraries: Library[];
 	thumbnailDir: string;
+	metadataDir: string;
 	databaseUrl: string;
 	scanOptions: ScanOptions;
 }
@@ -17,6 +18,8 @@ export interface ScanOptions {
 	followSymlinks: boolean;
 	generateThumbnails: boolean;
 	thumbnailConcurrency: number;
+	fetchMetadata: boolean;
+	metadataConcurrency: number;
 }
 
 export interface ScanResult {
