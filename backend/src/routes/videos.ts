@@ -96,7 +96,14 @@ const videoRoutes: FastifyPluginAsync = async (fastify) => {
 
   // GET /api/videos/stats/summary - Get overall statistics
   fastify.get('/stats/summary', async (request, reply) => {
-    const [total, byType, totalSize] = await Promise.all([
+    const [
+      total,
+      byType,
+      totalSize,
+      thumbnailsBySource,
+      thumbnailsWith,
+      thumbnailsWithout,
+    ] = await Promise.all([
       prisma.video.count({ where: { missingOnDisk: false } }),
       prisma.video.groupBy({
         by: ['mediaType'],
@@ -107,7 +114,42 @@ const videoRoutes: FastifyPluginAsync = async (fastify) => {
         where: { missingOnDisk: false },
         _sum: { filesizeBytes: true },
       }),
+      prisma.video.groupBy({
+        by: ['thumbnailSource'],
+        where: {
+          missingOnDisk: false,
+          hasThumbnails: true,
+        },
+        _count: true,
+      }),
+      prisma.video.count({
+        where: {
+          missingOnDisk: false,
+          hasThumbnails: true,
+        },
+      }),
+      prisma.video.count({
+        where: {
+          missingOnDisk: false,
+          hasThumbnails: false,
+        },
+      }),
     ]);
+
+    let thumbnailsFromOriginal = 0;
+    let thumbnailsFromExtraction = 0;
+    let thumbnailsFromUnknown = 0;
+
+    thumbnailsBySource.forEach((entry) => {
+      const count = entry._count;
+      if (entry.thumbnailSource === 'original') {
+        thumbnailsFromOriginal = count;
+      } else if (entry.thumbnailSource === 'extracted') {
+        thumbnailsFromExtraction = count;
+      } else {
+        thumbnailsFromUnknown += count;
+      }
+    });
 
     // Convert BigInt to Number for JSON serialization
     const totalSizeNum = totalSize._sum.filesizeBytes
@@ -121,6 +163,13 @@ const videoRoutes: FastifyPluginAsync = async (fastify) => {
         count: t._count,
       })),
       totalSizeBytes: totalSizeNum,
+      thumbnails: {
+        withThumbnails: thumbnailsWith,
+        withoutThumbnails: thumbnailsWithout,
+        original: thumbnailsFromOriginal,
+        extracted: thumbnailsFromExtraction,
+        unknown: thumbnailsFromUnknown,
+      },
     };
   });
 };

@@ -68,6 +68,13 @@ export interface VideoStats {
     count: number
   }>
   totalSizeBytes: number
+  thumbnails: {
+    withThumbnails: number
+    withoutThumbnails: number
+    original: number
+    extracted: number
+    unknown: number
+  }
 }
 
 export interface Video {

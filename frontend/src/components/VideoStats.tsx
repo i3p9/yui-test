@@ -77,7 +77,7 @@ export function VideoStats() {
 				</button>
 			</div>
 			<div className='space-y-6'>
-				<div className='grid grid-cols-1 gap-4 md:grid-cols-2'>
+				<div className='grid grid-cols-1 gap-4 md:grid-cols-3'>
 					<div className='border-2 border-blue-600 bg-zinc-900 p-6 shadow-[6px_6px_0_0_#09090b]'>
 						<p className='text-xs font-mono uppercase tracking-[0.3em] text-blue-300'>Total Videos</p>
 						<p className='mt-3 text-4xl font-black text-white'>
@@ -90,6 +90,44 @@ export function VideoStats() {
 						<p className='mt-3 text-2xl font-black text-white'>
 							{formatBytes(stats.totalSizeBytes)}
 						</p>
+					</div>
+					<div className='border-2 border-amber-500 bg-zinc-900 p-6 shadow-[6px_6px_0_0_#09090b]'>
+						<p className='text-xs font-mono uppercase tracking-[0.3em] text-amber-200'>
+							Thumbnails Ready
+						</p>
+						<p className='mt-3 text-3xl font-black text-white'>
+							{stats.thumbnails.withThumbnails}
+						</p>
+						<p className='mt-2 text-[11px] font-mono uppercase tracking-[0.2em] text-amber-300'>
+							Missing: {stats.thumbnails.withoutThumbnails}
+						</p>
+					</div>
+				</div>
+				<div className='border-2 border-amber-600 bg-zinc-900 p-6 shadow-[6px_6px_0_0_#09090b]'>
+					<p className='text-xs font-mono uppercase tracking-[0.3em] text-amber-300'>
+						Thumbnails By Source
+					</p>
+					<div className='mt-4 space-y-2'>
+						<div className='flex items-center justify-between border-2 border-zinc-800 bg-zinc-950 px-3 py-2 text-xs font-mono uppercase tracking-[0.2em]'>
+							<span className='text-zinc-400'>Original Files</span>
+							<span className='text-lg font-black text-white'>
+								{stats.thumbnails.original}
+							</span>
+						</div>
+						<div className='flex items-center justify-between border-2 border-zinc-800 bg-zinc-950 px-3 py-2 text-xs font-mono uppercase tracking-[0.2em]'>
+							<span className='text-zinc-400'>Generated (FFmpeg)</span>
+							<span className='text-lg font-black text-white'>
+								{stats.thumbnails.extracted}
+							</span>
+						</div>
+						{stats.thumbnails.unknown > 0 && (
+							<div className='flex items-center justify-between border-2 border-zinc-800 bg-zinc-950 px-3 py-2 text-xs font-mono uppercase tracking-[0.2em]'>
+								<span className='text-zinc-400'>Unknown Source</span>
+								<span className='text-lg font-black text-white'>
+									{stats.thumbnails.unknown}
+								</span>
+							</div>
+						)}
 					</div>
 				</div>
 				<div className='border-2 border-green-600 bg-zinc-900 p-6 shadow-[6px_6px_0_0_#09090b]'>
