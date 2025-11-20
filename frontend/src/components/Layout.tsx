@@ -37,9 +37,10 @@ export function Layout({ children }: LayoutProps) {
 	useEffect(() => {
 		if (isWatchPage) {
 			setIsSidebarCollapsed(true);
+		} else {
+			setIsSidebarCollapsed(false);
 		}
-		console.log("isSidebarCollapsed:: ", isSidebarCollapsed);
-	}, [location.pathname, isWatchPage]);
+	}, [isWatchPage]);
 
 	return (
 		<div className='min-h-screen bg-black text-white flex flex-col'>
