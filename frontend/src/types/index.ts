@@ -159,3 +159,40 @@ export interface MetadataFetchStatus {
   metadataThumbnailsFetched?: number
   currentMetadata?: string
 }
+
+export interface DangerStats {
+  database: {
+    videos: number
+    channels: number
+    scanLogs: number
+    watchProgress: number
+    subtitles: number
+  }
+  thumbnails: {
+    count: number
+    path: string
+  }
+  metadata: {
+    count: number
+    path: string
+  }
+}
+
+export interface ResetResult {
+  success: boolean
+  message: string
+  results: {
+    database: {
+      cleared: boolean
+      tables: string[]
+    }
+    thumbnails?: {
+      removed: boolean
+      path: string
+    }
+    metadata?: {
+      removed: boolean
+      path: string
+    }
+  }
+}

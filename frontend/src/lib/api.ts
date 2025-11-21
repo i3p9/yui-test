@@ -10,6 +10,8 @@ import type {
 	PaginatedVideos,
 	MetadataStats,
 	MetadataFetchStatus,
+	DangerStats,
+	ResetResult,
 } from "../types";
 
 const API_BASE = "/api";
@@ -199,3 +201,15 @@ export const startMetadataFetch = (videoIds?: string[]) =>
 
 export const getMetadataFetchStatus = () =>
 	fetchAPI<MetadataFetchStatus>("/metadata/status");
+
+// Danger Zone
+export const getDangerStats = () => fetchAPI<DangerStats>("/danger/stats");
+
+export const resetDatabase = (options: {
+	removeThumbnails?: boolean;
+	removeMetadata?: boolean;
+}) =>
+	fetchAPI<ResetResult>("/danger/reset", {
+		method: "POST",
+		body: JSON.stringify(options),
+	});

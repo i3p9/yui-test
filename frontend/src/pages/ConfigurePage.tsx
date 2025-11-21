@@ -5,6 +5,7 @@ import { ScanProgress } from '../components/ScanProgress'
 import { ScanHistory } from '../components/ScanHistory'
 import { VideoStats } from '../components/VideoStats'
 import MetadataManager from '../components/MetadataManager'
+import { DangerZone } from '../components/DangerZone'
 
 export function ConfigurePage() {
   const [isScanning, setIsScanning] = useState(false)
@@ -62,6 +63,10 @@ export function ConfigurePage() {
         <div className="space-y-8">
           <LibraryManager />
           <ScanHistory key={`history-${refreshKey}`} />
+          <DangerZone
+            key={`danger-${refreshKey}`}
+            onReset={() => setRefreshKey((k) => k + 1)}
+          />
         </div>
       </div>
     </div>

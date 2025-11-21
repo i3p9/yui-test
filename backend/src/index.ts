@@ -17,6 +17,7 @@ import libraryRoutes from "./routes/library.js";
 import streamRoutes from "./routes/stream.js";
 import progressRoutes from "./routes/progress.js";
 import metadataRoutes from "./routes/metadata.js";
+import dangerRoutes from "./routes/danger.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -49,6 +50,7 @@ await fastify.register(libraryRoutes, { prefix: "/api/library" });
 await fastify.register(streamRoutes, { prefix: "/api/stream" });
 await fastify.register(progressRoutes, { prefix: "/api/progress" });
 await fastify.register(metadataRoutes, { prefix: "/api/metadata" });
+await fastify.register(dangerRoutes, { prefix: "/api/danger" });
 
 // Health check
 fastify.get("/api/health", async (request, reply) => {
