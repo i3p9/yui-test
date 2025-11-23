@@ -16,6 +16,7 @@ import { scanState } from "../lib/scan-state.js";
 import { getPrismaClient } from "../lib/database.js";
 import { loadConfig } from "../lib/config.js";
 import { join } from "path";
+import { access, constants } from "fs/promises";
 
 const metadataRoutes: FastifyPluginAsync = async (fastify) => {
 	let currentFetch: Promise<any> | null = null;
@@ -23,6 +24,7 @@ const metadataRoutes: FastifyPluginAsync = async (fastify) => {
 	// GET /api/metadata/stats - Get incomplete metadata statistics
 	fastify.get("/stats", async (request, reply) => {
 		const prisma = getPrismaClient();
+		const config = await loadConfig();
 
 		// Count videos with incomplete metadata but has YouTube ID
 		const withVideoId = await prisma.video.count({
@@ -58,11 +60,41 @@ const metadataRoutes: FastifyPluginAsync = async (fastify) => {
 			},
 		});
 
+		// Check write permissions for each library
+		const libraryPermissions: Array<{
+			path: string;
+			name: string;
+			writable: boolean;
+		}> = [];
+
+		for (const library of config.libraries) {
+			if (library.skip) continue;
+			try {
+				await access(library.path, constants.W_OK);
+				libraryPermissions.push({
+					path: library.path,
+					name: library.name,
+					writable: true,
+				});
+			} catch {
+				libraryPermissions.push({
+					path: library.path,
+					name: library.name,
+					writable: false,
+				});
+			}
+		}
+
+		// Only allow with_video if ALL libraries are writable
+		const canWriteToLibraries = libraryPermissions.length > 0 && libraryPermissions.every((lib) => lib.writable);
+
 		return {
 			incompleteWithVideoId: withVideoId,
 			incompleteTotal: total,
 			fromFilename,
 			generatedThumbnailsCount,
+			libraryPermissions,
+			canWriteToLibraries,
 		};
 	});
 

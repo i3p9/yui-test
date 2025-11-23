@@ -16,6 +16,14 @@ export default function MetadataManager() {
 	const [saveLocation, setSaveLocation] = useState<
 		"with_video" | "app_data"
 	>("with_video");
+
+	// Auto-switch to app_data if libraries are read-only
+	useEffect(() => {
+		if (stats && !stats.canWriteToLibraries && saveLocation === "with_video") {
+			setSaveLocation("app_data");
+		}
+	}, [stats, saveLocation]);
+
 	useEffect(() => {
 		loadStats();
 	}, []);
@@ -31,14 +39,11 @@ export default function MetadataManager() {
 		return () => clearInterval(interval);
 	}, [fetching]);
 
-	console.log("saveLocation:: ", saveLocation);
-
 	const loadStats = async () => {
 		setLoading(true);
 		setError(null);
 		try {
 			const data = await getMetadataStats();
-			console.log("data:: ", data);
 			setStats(data);
 		} catch (err) {
 			setError(
@@ -260,7 +265,13 @@ export default function MetadataManager() {
 
 					{/* Save Metadata to Video Folder */}
 					<div>
-						<label className='flex cursor-pointer items-center gap-3 border-2 border-zinc-800 bg-zinc-900 p-3 transition-colors hover:border-zinc-700'>
+						<label
+							className={`flex items-center gap-3 border-2 p-3 transition-colors ${
+								stats?.canWriteToLibraries
+									? "cursor-pointer border-zinc-800 bg-zinc-900 hover:border-zinc-700"
+									: "cursor-not-allowed border-zinc-800 bg-zinc-900/50 opacity-60"
+							}`}
+						>
 							<input
 								type='checkbox'
 								checked={saveLocation === "with_video"}
@@ -269,19 +280,27 @@ export default function MetadataManager() {
 										e.target.checked ? "with_video" : "app_data"
 									)
 								}
+								disabled={!stats?.canWriteToLibraries}
 								className='h-4 w-4 accent-red-500'
 							/>
 							<div>
-								<p className='text-sm font-bold text-white'>
-									Save Metadata to Video Folder (Recommended)
+								<p className={`text-sm font-bold ${stats?.canWriteToLibraries ? "text-white" : "text-zinc-500"}`}>
+									Save Metadata to Video Folder {stats?.canWriteToLibraries ? "(Recommended)" : "(Read-Only)"}
 								</p>
 								<p className='text-xs font-mono text-zinc-500'>
-									{saveLocation === "with_video"
+									{!stats?.canWriteToLibraries
+										? "Libraries are mounted read-only"
+										: saveLocation === "with_video"
 										? "Saves metadata to the respective video folder"
 										: "Saves metadata to the .metadata/ directory"}
 								</p>
 							</div>
 						</label>
+						{!stats?.canWriteToLibraries && (
+							<p className='mt-2 text-xs font-mono text-amber-500'>
+								All libraries are read-only. Metadata will be saved to app data directory.
+							</p>
+						)}
 					</div>
 
 					{/* Fetch Button */}

@@ -149,6 +149,12 @@ export interface MetadataStats {
 	incompleteTotal: number;
 	fromFilename: number;
 	generatedThumbnailsCount: number;
+	libraryPermissions: Array<{
+		path: string;
+		name: string;
+		writable: boolean;
+	}>;
+	canWriteToLibraries: boolean;
 }
 
 export interface MetadataFetchStatus {
