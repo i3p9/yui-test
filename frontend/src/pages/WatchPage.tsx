@@ -156,7 +156,7 @@ export function WatchPage() {
       <div className="flex-1 overflow-y-auto">
         {/* Video Player */}
         <div className="bg-black p-6">
-          <div className="w-full">
+          <div className="w-full aspect-video bg-zinc-900">
             <Plyr
               ref={playerRef}
               source={{
@@ -181,6 +181,7 @@ export function WatchPage() {
                   'fullscreen',
                 ],
                 keyboard: { focused: true, global: true },
+                autoplay: true,
               }}
               onTimeUpdate={handleTimeUpdate}
               onPause={handlePause}
