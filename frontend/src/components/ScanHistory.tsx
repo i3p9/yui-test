@@ -33,7 +33,7 @@ export function ScanHistory() {
 		startedAt: string,
 		endedAt: string | null
 	) => {
-		if (!endedAt) return "In progress...";
+		if (!endedAt) return "Ongoing...";
 
 		const start = new Date(startedAt).getTime();
 		const end = new Date(endedAt).getTime();

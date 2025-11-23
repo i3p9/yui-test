@@ -74,8 +74,10 @@ export class MetadataFetcher {
 			const outputDir = join(this.metadataDir, videoId);
 			await mkdir(outputDir, { recursive: true });
 
-			const infoJsonPath = join(outputDir, "info.json");
+			const infoJsonPath = join(outputDir, `${videoId}.info.json`);
 			const thumbnailOutputPath = join(outputDir, `${videoId}.webp`);
+			console.log("thumbnailOutputPath:: ", thumbnailOutputPath);
+			console.log("infoJsonPath:: ", infoJsonPath);
 
 			// Check if metadata already exists
 			const metadataExists = existsSync(infoJsonPath);
@@ -131,7 +133,10 @@ export class MetadataFetcher {
 				parsedMetadata: metadata,
 			};
 		} catch (error) {
-			console.error(`Failed to fetch metadata for ${videoId}:`, error);
+			console.error(
+				`Failed to fetch metadata for ${videoId}:`,
+				error
+			);
 			return null;
 		}
 	}
@@ -172,7 +177,10 @@ export class MetadataFetcher {
 						completed++;
 						metadataFetched++;
 
-						if (result.thumbnailPath && result.thumbnailPath !== job.thumbnailPath) {
+						if (
+							result.thumbnailPath &&
+							result.thumbnailPath !== job.thumbnailPath
+						) {
 							thumbnailsFetched++;
 						}
 					} else {

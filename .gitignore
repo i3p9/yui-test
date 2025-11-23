@@ -19,6 +19,10 @@ data/
 .thumbnails/
 thumbnails/
 
+# metadata
+.metadata/
+metadata/
+
 # Logs
 *.log
 npm-debug.log*
