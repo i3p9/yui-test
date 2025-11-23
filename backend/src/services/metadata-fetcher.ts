@@ -6,7 +6,7 @@
 import { exec } from "child_process";
 import { promisify } from "util";
 import { mkdir, readFile, stat } from "fs/promises";
-import { join, basename } from "path";
+import { join, basename, dirname } from "path";
 import { existsSync } from "fs";
 import pLimit from "p-limit";
 import type { InfoJson } from "../types/index.js";
@@ -54,11 +54,17 @@ export class MetadataFetcher {
 	private metadataDir: string;
 	private concurrency: number;
 	private limiter: ReturnType<typeof pLimit>;
+	private saveLocation: "with_video" | "app_data";
 
-	constructor(metadataDir: string, concurrency: number = 2) {
+	constructor(
+		metadataDir: string,
+		concurrency: number = 2,
+		saveLocation: "with_video" | "app_data"
+	) {
 		this.metadataDir = metadataDir;
 		this.concurrency = concurrency;
 		this.limiter = pLimit(concurrency);
+		this.saveLocation = saveLocation;
 	}
 
 	/**
@@ -67,11 +73,21 @@ export class MetadataFetcher {
 	async fetchForVideo(
 		job: MetadataFetchJob
 	): Promise<MetadataFetchResult | null> {
-		const { videoId, thumbnailPath, thumbnailSource } = job;
+		const { videoId, videoPath, thumbnailPath, thumbnailSource } =
+			job;
 
 		try {
+			// Determine output directory based on saveLocation
+			let outputDir: string;
+			if (this.saveLocation === "with_video") {
+				// Save in the same folder as the video file
+				outputDir = dirname(videoPath);
+			} else {
+				// Save in app's metadata directory
+				outputDir = join(this.metadataDir, videoId);
+			}
+
 			// Create output directory
-			const outputDir = join(this.metadataDir, videoId);
 			await mkdir(outputDir, { recursive: true });
 
 			const infoJsonPath = join(outputDir, `${videoId}.info.json`);

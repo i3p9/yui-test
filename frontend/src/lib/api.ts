@@ -101,7 +101,10 @@ export const getVideoStats = () =>
 	fetchAPI<VideoStats>("/videos/stats/summary");
 
 // Library
-export const getLatestVideos = (params?: { page?: number; limit?: number }) => {
+export const getLatestVideos = (params?: {
+	page?: number;
+	limit?: number;
+}) => {
 	const searchParams = new URLSearchParams();
 	if (params) {
 		Object.entries(params).forEach(([key, value]) => {
@@ -133,11 +136,16 @@ export const getChannelVideos = (
 	}
 	const query = searchParams.toString();
 	return fetchAPI<{ channel: any; videos: any[]; pagination: any }>(
-		`/library/channels/${uploaderId}/videos${query ? `?${query}` : ""}`
+		`/library/channels/${uploaderId}/videos${
+			query ? `?${query}` : ""
+		}`
 	);
 };
 
-export const getLikedVideos = (params?: { page?: number; limit?: number }) => {
+export const getLikedVideos = (params?: {
+	page?: number;
+	limit?: number;
+}) => {
 	const searchParams = new URLSearchParams();
 	if (params) {
 		Object.entries(params).forEach(([key, value]) => {
@@ -163,12 +171,13 @@ export const getVideoNavigation = (videoId: string) =>
 	);
 
 // Streaming
-export const getStreamUrl = (videoId: string) => `/api/stream/${videoId}`;
+export const getStreamUrl = (videoId: string) =>
+	`/api/stream/${videoId}`;
 
 // Thumbnails - new API using videoId and size
 export const getThumbnailUrl = (
 	videoId: string,
-	size: 'small' | 'large' = 'small'
+	size: "small" | "large" = "small"
 ) => `/api/stream/thumbnail/${videoId}/${size}`;
 
 // Legacy thumbnail URL (for backwards compatibility)
@@ -181,10 +190,13 @@ export const updateWatchProgress = (
 	positionSeconds: number,
 	durationSeconds?: number
 ) =>
-	fetchAPI<{ success: boolean; progress: any }>(`/progress/${videoId}`, {
-		method: "POST",
-		body: JSON.stringify({ positionSeconds, durationSeconds }),
-	});
+	fetchAPI<{ success: boolean; progress: any }>(
+		`/progress/${videoId}`,
+		{
+			method: "POST",
+			body: JSON.stringify({ positionSeconds, durationSeconds }),
+		}
+	);
 
 export const getWatchProgress = (videoId: string) =>
 	fetchAPI<{ progress: any | null }>(`/progress/${videoId}`);
@@ -193,17 +205,21 @@ export const getWatchProgress = (videoId: string) =>
 export const getMetadataStats = () =>
 	fetchAPI<MetadataStats>("/metadata/stats");
 
-export const startMetadataFetch = (videoIds?: string[]) =>
+export const startMetadataFetch = (
+	videoIds?: string[],
+	saveLocation?: "with_video" | "app_data"
+) =>
 	fetchAPI<{ message: string; count: number }>("/metadata/fetch", {
 		method: "POST",
-		body: JSON.stringify({ videoIds }),
+		body: JSON.stringify({ videoIds, saveLocation }),
 	});
 
 export const getMetadataFetchStatus = () =>
 	fetchAPI<MetadataFetchStatus>("/metadata/status");
 
 // Danger Zone
-export const getDangerStats = () => fetchAPI<DangerStats>("/danger/stats");
+export const getDangerStats = () =>
+	fetchAPI<DangerStats>("/danger/stats");
 
 export const resetDatabase = (options: {
 	removeThumbnails?: boolean;

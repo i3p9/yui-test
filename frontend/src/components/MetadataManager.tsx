@@ -1,81 +1,101 @@
-import { useEffect, useState } from 'react'
-import { getMetadataStats, startMetadataFetch, getMetadataFetchStatus } from '../lib/api'
-import type { MetadataStats, MetadataFetchStatus } from '../types'
+import { useEffect, useState } from "react";
+import {
+	getMetadataStats,
+	startMetadataFetch,
+	getMetadataFetchStatus,
+} from "../lib/api";
+import type { MetadataStats, MetadataFetchStatus } from "../types";
 
 export default function MetadataManager() {
-	const [stats, setStats] = useState<MetadataStats | null>(null)
-	const [fetchStatus, setFetchStatus] = useState<MetadataFetchStatus | null>(null)
-	const [loading, setLoading] = useState(true)
-	const [error, setError] = useState<string | null>(null)
-	const [fetching, setFetching] = useState(false)
-
+	const [stats, setStats] = useState<MetadataStats | null>(null);
+	const [fetchStatus, setFetchStatus] =
+		useState<MetadataFetchStatus | null>(null);
+	const [loading, setLoading] = useState(true);
+	const [error, setError] = useState<string | null>(null);
+	const [fetching, setFetching] = useState(false);
+	const [saveLocation, setSaveLocation] = useState<
+		"with_video" | "app_data"
+	>("with_video");
 	useEffect(() => {
-		loadStats()
-	}, [])
+		loadStats();
+	}, []);
 
 	// Poll fetch status while fetching
 	useEffect(() => {
-		if (!fetching) return
+		if (!fetching) return;
 
 		const interval = setInterval(() => {
-			loadFetchStatus()
-		}, 1000) // Poll every second
+			loadFetchStatus();
+		}, 1000); // Poll every second
 
-		return () => clearInterval(interval)
-	}, [fetching])
+		return () => clearInterval(interval);
+	}, [fetching]);
+
+	console.log("saveLocation:: ", saveLocation);
 
 	const loadStats = async () => {
-		setLoading(true)
-		setError(null)
+		setLoading(true);
+		setError(null);
 		try {
-			const data = await getMetadataStats()
-			setStats(data)
+			const data = await getMetadataStats();
+			setStats(data);
 		} catch (err) {
-			setError(err instanceof Error ? err.message : 'Failed to load metadata stats')
+			setError(
+				err instanceof Error
+					? err.message
+					: "Failed to load metadata stats"
+			);
 		} finally {
-			setLoading(false)
+			setLoading(false);
 		}
-	}
+	};
 
 	const loadFetchStatus = async () => {
 		try {
-			const status = await getMetadataFetchStatus()
-			setFetchStatus(status)
+			const status = await getMetadataFetchStatus();
+			setFetchStatus(status);
 
 			// If not running anymore, refresh stats and stop polling
 			if (!status.isRunning && fetching) {
-				setFetching(false)
-				await loadStats()
+				setFetching(false);
+				await loadStats();
 			}
 		} catch (err) {
-			console.error('Failed to load fetch status:', err)
+			console.error("Failed to load fetch status:", err);
 		}
-	}
+	};
 
 	const handleFetchMetadata = async () => {
-		if (fetching) return
+		if (fetching) return;
 
-		setFetching(true)
-		setError(null)
+		setFetching(true);
+		setError(null);
 
 		try {
-			await startMetadataFetch()
-			await loadFetchStatus()
+			await startMetadataFetch(undefined, saveLocation);
+			await loadFetchStatus();
 		} catch (err) {
-			setError(err instanceof Error ? err.message : 'Failed to start metadata fetch')
-			setFetching(false)
+			setError(
+				err instanceof Error
+					? err.message
+					: "Failed to start metadata fetch"
+			);
+			setFetching(false);
 		}
-	}
+	};
 
 	if (loading) {
 		return (
 			<div className='border-4 border-zinc-900 bg-zinc-950 p-6 shadow-[10px_10px_0_0_#09090b]'>
-				<div className='text-center text-zinc-500'>Loading metadata stats...</div>
+				<div className='text-center text-zinc-500'>
+					Loading metadata stats...
+				</div>
 			</div>
-		)
+		);
 	}
 
-	const hasIncompleteMetadata = stats && stats.incompleteWithVideoId > 0
+	const hasIncompleteMetadata =
+		stats && stats.incompleteWithVideoId > 0;
 
 	return (
 		<div className='border-4 border-zinc-900 bg-zinc-950 p-6 shadow-[10px_10px_0_0_#09090b]'>
@@ -143,58 +163,69 @@ export default function MetadataManager() {
 					</div>
 
 					{/* Progress Bar (when fetching) */}
-					{fetching && fetchStatus && fetchStatus.metadataTotal !== undefined && (
-						<div className='border-2 border-cyan-600 bg-zinc-950 p-4 shadow-[4px_4px_0_0_#09090b]'>
-							<div className='mb-3 flex items-center justify-between'>
-								<p className='text-xs font-mono uppercase tracking-[0.2em] text-cyan-400'>
-									Fetching Progress
-								</p>
-								<p className='text-xs font-mono text-zinc-400'>
-									{fetchStatus.metadataFetched || 0} / {fetchStatus.metadataTotal}
-								</p>
-							</div>
-
-							{/* Progress Bar */}
-							<div className='h-3 border-2 border-zinc-800 bg-zinc-900'>
-								<div
-									className='h-full bg-gradient-to-r from-cyan-600 to-cyan-500 transition-all duration-300'
-									style={{
-										width: `${
-											((fetchStatus.metadataFetched || 0) / fetchStatus.metadataTotal) * 100
-										}%`,
-									}}
-								/>
-							</div>
-
-							{/* Details */}
-							<div className='mt-3 grid grid-cols-3 gap-2 text-xs font-mono'>
-								<div>
-									<span className='text-zinc-500'>Completed:</span>{' '}
-									<span className='text-green-400'>{fetchStatus.metadataFetched || 0}</span>
-								</div>
-								<div>
-									<span className='text-zinc-500'>Failed:</span>{' '}
-									<span className='text-red-400'>{fetchStatus.metadataFailed || 0}</span>
-								</div>
-								<div>
-									<span className='text-zinc-500'>Thumbs:</span>{' '}
-									<span className='text-blue-400'>
-										{fetchStatus.metadataThumbnailsFetched || 0}
-									</span>
-								</div>
-							</div>
-
-							{/* Current Video */}
-							{fetchStatus.currentMetadata && (
-								<div className='mt-3 border-t border-zinc-800 pt-3'>
-									<p className='text-xs font-mono text-zinc-500'>Current:</p>
-									<p className='mt-1 truncate text-xs font-mono text-white'>
-										{fetchStatus.currentMetadata}
+					{fetching &&
+						fetchStatus &&
+						fetchStatus.metadataTotal !== undefined && (
+							<div className='border-2 border-cyan-600 bg-zinc-950 p-4 shadow-[4px_4px_0_0_#09090b]'>
+								<div className='mb-3 flex items-center justify-between'>
+									<p className='text-xs font-mono uppercase tracking-[0.2em] text-cyan-400'>
+										Fetching Progress
+									</p>
+									<p className='text-xs font-mono text-zinc-400'>
+										{fetchStatus.metadataFetched || 0} /{" "}
+										{fetchStatus.metadataTotal}
 									</p>
 								</div>
-							)}
-						</div>
-					)}
+
+								{/* Progress Bar */}
+								<div className='h-3 border-2 border-zinc-800 bg-zinc-900'>
+									<div
+										className='h-full bg-gradient-to-r from-cyan-600 to-cyan-500 transition-all duration-300'
+										style={{
+											width: `${
+												((fetchStatus.metadataFetched || 0) /
+													fetchStatus.metadataTotal) *
+												100
+											}%`,
+										}}
+									/>
+								</div>
+
+								{/* Details */}
+								<div className='mt-3 grid grid-cols-3 gap-2 text-xs font-mono'>
+									<div>
+										<span className='text-zinc-500'>Completed:</span>{" "}
+										<span className='text-green-400'>
+											{fetchStatus.metadataFetched || 0}
+										</span>
+									</div>
+									<div>
+										<span className='text-zinc-500'>Failed:</span>{" "}
+										<span className='text-red-400'>
+											{fetchStatus.metadataFailed || 0}
+										</span>
+									</div>
+									<div>
+										<span className='text-zinc-500'>Thumbs:</span>{" "}
+										<span className='text-blue-400'>
+											{fetchStatus.metadataThumbnailsFetched || 0}
+										</span>
+									</div>
+								</div>
+
+								{/* Current Video */}
+								{fetchStatus.currentMetadata && (
+									<div className='mt-3 border-t border-zinc-800 pt-3'>
+										<p className='text-xs font-mono text-zinc-500'>
+											Current:
+										</p>
+										<p className='mt-1 truncate text-xs font-mono text-white'>
+											{fetchStatus.currentMetadata}
+										</p>
+									</div>
+								)}
+							</div>
+						)}
 
 					{/* Info Box */}
 					<div className='border-2 border-cyan-800 bg-zinc-950 p-4 shadow-[4px_4px_0_0_#09090b]'>
@@ -202,13 +233,40 @@ export default function MetadataManager() {
 							ℹ Info
 						</p>
 						<p className='mt-2 text-sm text-zinc-300'>
-							Videos with incomplete metadata are missing information like title, uploader,
-							upload date, or duration. Click the button below to fetch missing metadata from
-							YouTube using yt-dlp.
+							Videos with incomplete metadata are missing information
+							like title, uploader, upload date, or duration. Click
+							the button below to fetch missing metadata from YouTube
+							using yt-dlp.
 						</p>
 						<p className='mt-2 text-sm text-zinc-400'>
-							Fetched metadata will be saved to the <code className='text-cyan-400'>.metadata/</code> directory.
+							Fetched metadata will be saved to the{" "}
+							<code className='text-cyan-400'>.metadata/</code>{" "}
+							directory.
 						</p>
+					</div>
+
+					{/* Save Metadata to Video Folder */}
+					<div>
+						<label className='flex cursor-pointer items-center gap-3 border-2 border-zinc-800 bg-zinc-900 p-3 transition-colors hover:border-zinc-700'>
+							<input
+								type='checkbox'
+								checked={saveLocation === "with_video"}
+								onChange={(e) =>
+									setSaveLocation(
+										e.target.checked ? "with_video" : "app_data"
+									)
+								}
+								className='h-4 w-4 accent-red-500'
+							/>
+							<div>
+								<p className='text-sm font-bold text-white'>
+									Save Metadata to Video Folder
+								</p>
+								<p className='text-xs font-mono text-zinc-500'>
+									Save metadata to the video folder
+								</p>
+							</div>
+						</label>
 					</div>
 
 					{/* Fetch Button */}
@@ -217,18 +275,18 @@ export default function MetadataManager() {
 						disabled={fetching || !hasIncompleteMetadata}
 						className={`w-full border-4 px-6 py-4 font-black uppercase tracking-[0.3em] transition-colors ${
 							fetching || !hasIncompleteMetadata
-								? 'cursor-not-allowed border-zinc-800 bg-zinc-900 text-zinc-500'
-								: 'border-cyan-600 bg-cyan-950 text-cyan-300 hover:border-cyan-500 hover:text-cyan-200'
+								? "cursor-not-allowed border-zinc-800 bg-zinc-900 text-zinc-500"
+								: "border-cyan-600 bg-cyan-950 text-cyan-300 hover:border-cyan-500 hover:text-cyan-200"
 						}`}
 					>
 						{fetching
-							? 'Fetching Metadata...'
+							? "Fetching Metadata..."
 							: hasIncompleteMetadata
-							? 'Fetch Missing Metadata'
-							: 'All Metadata Complete'}
+							? "Fetch Missing Metadata"
+							: "All Metadata Complete"}
 					</button>
 				</div>
 			)}
 		</div>
-	)
+	);
 }
