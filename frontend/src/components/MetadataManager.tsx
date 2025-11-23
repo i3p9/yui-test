@@ -38,6 +38,7 @@ export default function MetadataManager() {
 		setError(null);
 		try {
 			const data = await getMetadataStats();
+			console.log("data:: ", data);
 			setStats(data);
 		} catch (err) {
 			setError(
@@ -95,7 +96,9 @@ export default function MetadataManager() {
 	}
 
 	const hasIncompleteMetadata =
-		stats && stats.incompleteWithVideoId > 0;
+		stats &&
+		(stats.incompleteWithVideoId > 0 ||
+			stats.generatedThumbnailsCount > 0);
 
 	return (
 		<div className='border-4 border-zinc-900 bg-zinc-950 p-6 shadow-[10px_10px_0_0_#09090b]'>
@@ -133,7 +136,16 @@ export default function MetadataManager() {
 			{stats && (
 				<div className='space-y-4'>
 					{/* Stats Grid */}
-					<div className='grid gap-3 sm:grid-cols-3'>
+
+					<div className='grid gap-4 sm:grid-cols-4'>
+						<div className='border-2 border-zinc-800 bg-zinc-950 p-4 shadow-[4px_4px_0_0_#09090b]'>
+							<p className='text-xs font-mono uppercase tracking-[0.2em] text-zinc-500'>
+								Generated Thumbnails
+							</p>
+							<p className='mt-2 text-2xl font-black text-green-400'>
+								{stats.generatedThumbnailsCount}
+							</p>
+						</div>
 						<div className='border-2 border-zinc-800 bg-zinc-950 p-4 shadow-[4px_4px_0_0_#09090b]'>
 							<p className='text-xs font-mono uppercase tracking-[0.2em] text-zinc-500'>
 								Incomplete w/ ID
@@ -157,7 +169,8 @@ export default function MetadataManager() {
 								Total Incomplete
 							</p>
 							<p className='mt-2 text-2xl font-black text-red-400'>
-								{stats.incompleteTotal}
+								{(stats.incompleteTotal || 0) +
+									(stats.generatedThumbnailsCount || 0)}
 							</p>
 						</div>
 					</div>
@@ -234,14 +247,14 @@ export default function MetadataManager() {
 						</p>
 						<p className='mt-2 text-sm text-zinc-300'>
 							Videos with incomplete metadata are missing information
-							like title, uploader, upload date, or duration. Click
-							the button below to fetch missing metadata from YouTube
-							using yt-dlp.
+							like title, uploader, upload date, or duration. Fetch
+							missing metadata from YouTube using yt-dlp.
 						</p>
 						<p className='mt-2 text-sm text-zinc-400'>
-							Fetched metadata will be saved to the{" "}
+							Metadata can be saved either in each video's folder or
+							centrally in the{" "}
 							<code className='text-cyan-400'>.metadata/</code>{" "}
-							directory.
+							directory. Choose your preference below.
 						</p>
 					</div>
 
@@ -260,10 +273,12 @@ export default function MetadataManager() {
 							/>
 							<div>
 								<p className='text-sm font-bold text-white'>
-									Save Metadata to Video Folder
+									Save Metadata to Video Folder (Recommended)
 								</p>
 								<p className='text-xs font-mono text-zinc-500'>
-									Save metadata to the video folder
+									{saveLocation === "with_video"
+										? "Saves metadata to the respective video folder"
+										: "Saves metadata to the .metadata/ directory"}
 								</p>
 							</div>
 						</label>

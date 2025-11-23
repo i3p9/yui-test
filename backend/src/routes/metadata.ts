@@ -8,6 +8,10 @@ import {
 	MetadataFetcher,
 	type MetadataFetchJob,
 } from "../services/metadata-fetcher.js";
+import {
+	ThumbnailGenerator,
+	type ThumbnailJob,
+} from "../services/thumbnail-generator.js";
 import { scanState } from "../lib/scan-state.js";
 import { getPrismaClient } from "../lib/database.js";
 import { loadConfig } from "../lib/config.js";
@@ -45,10 +49,20 @@ const metadataRoutes: FastifyPluginAsync = async (fastify) => {
 			},
 		});
 
+		// Count videos where thumbnail source is not original (indicates generated thumbnails)
+		const generatedThumbnailsCount = await prisma.video.count({
+			where: {
+				thumbnailSource: {
+					not: "original",
+				},
+			},
+		});
+
 		return {
 			incompleteWithVideoId: withVideoId,
 			incompleteTotal: total,
 			fromFilename,
+			generatedThumbnailsCount,
 		};
 	});
 
@@ -92,8 +106,17 @@ const metadataRoutes: FastifyPluginAsync = async (fastify) => {
 			// Fetch all videos with incomplete metadata
 			videosToFetch = await prisma.video.findMany({
 				where: {
-					hasCompleteMetadata: false,
-					missingOnDisk: false,
+					OR: [
+						{
+							hasCompleteMetadata: false,
+							missingOnDisk: false,
+						},
+						{
+							thumbnailSource: {
+								not: "original",
+							},
+						},
+					],
 				},
 				select: {
 					videoId: true,
@@ -194,11 +217,11 @@ const metadataRoutes: FastifyPluginAsync = async (fastify) => {
 						updateData.audioCodec = result.parsedMetadata.audioCodec;
 					}
 
-					// Update thumbnail if fetched
+					// Update thumbnail path if fetched
+					const originalJob = jobs.find((j) => j.videoId === videoId);
 					if (
 						result.thumbnailPath &&
-						result.thumbnailPath !==
-							jobs.find((j) => j.videoId === videoId)?.thumbnailPath
+						result.thumbnailPath !== originalJob?.thumbnailPath
 					) {
 						updateData.thumbnailPath = result.thumbnailPath;
 					}
@@ -207,6 +230,84 @@ const metadataRoutes: FastifyPluginAsync = async (fastify) => {
 						where: { videoId },
 						data: updateData,
 					});
+				}
+
+				// PHASE 2: Generate optimized thumbnails for videos that got new thumbnails
+				const videosWithNewThumbnails = Array.from(results.entries())
+					.filter(([videoId, result]) => {
+						const originalJob = jobs.find((j) => j.videoId === videoId);
+						// Include if: thumbnail was fetched OR thumbnail source was "extracted" (needs regeneration)
+						return (
+							(result.thumbnailPath && result.thumbnailPath !== originalJob?.thumbnailPath) ||
+							originalJob?.thumbnailSource === "extracted"
+						);
+					})
+					.map(([videoId, result]) => ({
+						videoId,
+						thumbnailPath: result.thumbnailPath,
+						durationSeconds: result.parsedMetadata.durationSeconds,
+					}));
+
+				if (videosWithNewThumbnails.length > 0) {
+					console.log(`Generating optimized thumbnails for ${videosWithNewThumbnails.length} videos...`);
+
+					scanState.updateProgress({
+						phase: "thumbnails",
+						thumbnailsTotal: videosWithNewThumbnails.length,
+						thumbnailsGenerated: 0,
+						thumbnailsFailed: 0,
+					});
+
+					const thumbnailDir = join(process.cwd(), config.thumbnailDir);
+					const thumbnailGenerator = new ThumbnailGenerator(
+						thumbnailDir,
+						config.scanOptions.thumbnailConcurrency
+					);
+
+					// Get video paths for thumbnail generation
+					const videosForThumbnails = await prisma.video.findMany({
+						where: {
+							videoId: { in: videosWithNewThumbnails.map((v) => v.videoId) },
+						},
+						select: {
+							videoId: true,
+							videoPath: true,
+							thumbnailPath: true,
+							durationSeconds: true,
+						},
+					});
+
+					const thumbnailJobs: ThumbnailJob[] = videosForThumbnails.map((video) => ({
+						videoId: video.videoId,
+						videoPath: video.videoPath,
+						existingThumbnailPath: video.thumbnailPath || undefined,
+						durationSeconds: video.durationSeconds || undefined,
+						forceRegenerate: true, // Force regeneration since we have new thumbnails from YouTube
+					}));
+
+					const thumbnailResults = await thumbnailGenerator.generateBatch(
+						thumbnailJobs,
+						(progress) => {
+							scanState.updateProgress({
+								thumbnailsGenerated: progress.completed,
+								thumbnailsFailed: progress.failed,
+								currentThumbnail: progress.current,
+							});
+						}
+					);
+
+					// Update database with thumbnail generation results
+					for (const [videoId, thumbResult] of thumbnailResults) {
+						await prisma.video.update({
+							where: { videoId },
+							data: {
+								hasThumbnails: true,
+								thumbnailSource: thumbResult.source,
+							},
+						});
+					}
+
+					console.log(`Optimized thumbnails generated: ${thumbnailResults.size}`);
 				}
 
 				// Mark as complete

@@ -362,14 +362,15 @@ export class ScanOrchestrator {
 			metadataThumbnailsFetched: 0,
 		});
 
-		// Create metadata fetcher
+		// Create metadata fetcher (save to app_data during scan)
 		const metadataDir = join(
 			process.cwd(),
 			config.metadataDir || ".metadata"
 		);
 		const fetcher = new MetadataFetcher(
 			metadataDir,
-			config.scanOptions.metadataConcurrency || 1
+			config.scanOptions.metadataConcurrency || 1,
+			"app_data"
 		);
 
 		// Prepare jobs
@@ -432,13 +433,11 @@ export class ScanOrchestrator {
 				updateData.audioCodec = result.parsedMetadata.audioCodec;
 			}
 
-			// Update thumbnail if fetched
-			const originalThumbnailPath = jobs.find(
-				(j) => j.videoId === videoId
-			)?.thumbnailPath;
+			// Update thumbnail path if fetched
+			const originalJob = jobs.find((j) => j.videoId === videoId);
 			if (
 				result.thumbnailPath &&
-				result.thumbnailPath !== originalThumbnailPath
+				result.thumbnailPath !== originalJob?.thumbnailPath
 			) {
 				updateData.thumbnailPath = result.thumbnailPath;
 			}
@@ -447,6 +446,71 @@ export class ScanOrchestrator {
 				where: { videoId },
 				data: updateData,
 			});
+		}
+
+		// PHASE 3b: Generate optimized thumbnails for videos that got new thumbnails
+		const videosWithNewThumbnails = Array.from(results.entries())
+			.filter(([videoId, result]) => {
+				const originalJob = jobs.find((j) => j.videoId === videoId);
+				// Include if: thumbnail was fetched OR thumbnail source was "extracted" (needs regeneration)
+				return (
+					(result.thumbnailPath && result.thumbnailPath !== originalJob?.thumbnailPath) ||
+					originalJob?.thumbnailSource === "extracted"
+				);
+			})
+			.map(([videoId, result]) => ({
+				videoId,
+				thumbnailPath: result.thumbnailPath,
+				durationSeconds: result.parsedMetadata.durationSeconds,
+			}));
+
+		if (videosWithNewThumbnails.length > 0) {
+			console.log(`\nGenerating optimized thumbnails for ${videosWithNewThumbnails.length} videos with new thumbnails...`);
+
+			const thumbnailDir = join(
+				process.cwd(),
+				config.thumbnailDir || ".thumbnails"
+			);
+			const thumbnailGenerator = new ThumbnailGenerator(
+				thumbnailDir,
+				config.scanOptions.thumbnailConcurrency || 2
+			);
+
+			// Get video paths for thumbnail generation
+			const videosForThumbnails = await prisma.video.findMany({
+				where: {
+					videoId: { in: videosWithNewThumbnails.map((v) => v.videoId) },
+				},
+				select: {
+					videoId: true,
+					videoPath: true,
+					thumbnailPath: true,
+					durationSeconds: true,
+				},
+			});
+
+			const thumbnailJobs: ThumbnailJob[] = videosForThumbnails.map((video: { videoId: string; videoPath: string; thumbnailPath: string | null; durationSeconds: number | null }) => ({
+				videoId: video.videoId,
+				videoPath: video.videoPath,
+				existingThumbnailPath: video.thumbnailPath || undefined,
+				durationSeconds: video.durationSeconds || undefined,
+				forceRegenerate: true, // Force regeneration since we have new thumbnails from YouTube
+			}));
+
+			const thumbnailResults = await thumbnailGenerator.generateBatch(thumbnailJobs);
+
+			// Update database with thumbnail generation results
+			for (const [videoId, thumbResult] of thumbnailResults) {
+				await prisma.video.update({
+					where: { videoId },
+					data: {
+						hasThumbnails: true,
+						thumbnailSource: thumbResult.source,
+					},
+				});
+			}
+
+			console.log(`✓ Optimized thumbnails generated: ${thumbnailResults.size}`);
 		}
 
 		const finalState = scanState.getState();

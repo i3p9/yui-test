@@ -24,6 +24,7 @@ export interface ThumbnailJob {
 	videoPath: string;
 	existingThumbnailPath?: string;
 	durationSeconds?: number;
+	forceRegenerate?: boolean; // Force regeneration even if thumbnails exist
 }
 
 export interface ThumbnailProgress {
@@ -56,7 +57,7 @@ export class ThumbnailGenerator {
 	async generateForVideo(
 		job: ThumbnailJob
 	): Promise<ThumbnailResult | null> {
-		const { videoId, videoPath, existingThumbnailPath, durationSeconds } =
+		const { videoId, videoPath, existingThumbnailPath, durationSeconds, forceRegenerate } =
 			job;
 
 		try {
@@ -67,8 +68,8 @@ export class ThumbnailGenerator {
 			const smallPath = join(outputDir, "thumb_small.jpg");
 			const largePath = join(outputDir, "thumb_large.jpg");
 
-			// Check if thumbnails already exist and are valid
-			if (await this.thumbnailsExist(smallPath, largePath)) {
+			// Check if thumbnails already exist and are valid (skip if forceRegenerate)
+			if (!forceRegenerate && await this.thumbnailsExist(smallPath, largePath)) {
 				// Determine source by checking if original thumbnail exists
 				const source = existingThumbnailPath
 					? "original"
