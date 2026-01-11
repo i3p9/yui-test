@@ -96,7 +96,10 @@ export class SearchService {
     const { page = 1, limit = 20, types = ['videos', 'channels'] } = options;
     const offset = (page - 1) * limit;
 
-    const results = {
+    const results: {
+      channels: { items: ChannelSearchResult[], total: number },
+      videos: { items: VideoSearchResult[], total: number, pagination: { page: number, limit: number, pages: number } }
+    } = {
       channels: { items: [], total: 0 },
       videos: { items: [], total: 0, pagination: { page, limit, pages: 0 } },
     };
@@ -156,7 +159,7 @@ export class SearchService {
       LIMIT ? OFFSET ?
     `, searchQuery, limit, offset);
 
-    return this.convertBigIntFields(results);
+    return this.convertBigIntFields(results as any[]);
   }
 
   /**
@@ -188,7 +191,7 @@ export class SearchService {
       LIMIT ? OFFSET ?
     `, searchQuery, limit, offset);
 
-    return this.convertBigIntFields(results);
+    return this.convertBigIntFields(results as any[]);
   }
 
   /**

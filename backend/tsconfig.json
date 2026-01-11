@@ -37,5 +37,5 @@
   "include": ["src/**/*"],
 
   // Don't compile these
-  "exclude": ["node_modules", "dist"]
+  "exclude": ["node_modules", "dist", "src/test", "src/**/*.test.ts", "src/test-*.ts", "src/diagnose-*.ts"]
 }
