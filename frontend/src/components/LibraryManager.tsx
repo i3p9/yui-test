@@ -172,20 +172,20 @@ export function LibraryManager() {
 
   if (loading) {
     return (
-      <div className="border-4 border-zinc-900 bg-zinc-950 p-6 shadow-[10px_10px_0_0_#09090b]">
-        <p className="text-xs font-mono uppercase tracking-[0.3em] text-zinc-500">Library Control</p>
-        <h2 className="mt-2 text-lg font-black uppercase tracking-widest text-white">Library Management</h2>
-        <p className="mt-6 text-xs font-mono uppercase tracking-widest text-zinc-500">Loading...</p>
+      <div className="border-4 border-zinc-900 bg-zinc-950 p-5 shadow-[8px_8px_0_0_#09090b]">
+        <p className="text-xs font-mono uppercase tracking-[0.25em] text-zinc-500">Library Control</p>
+        <h2 className="mt-1 text-base font-black uppercase tracking-widest text-white">Library Management</h2>
+        <p className="mt-4 text-xs font-mono uppercase tracking-widest text-zinc-500">Loading...</p>
       </div>
     )
   }
 
   if (!config) {
     return (
-      <div className="border-4 border-zinc-900 bg-zinc-950 p-6 shadow-[10px_10px_0_0_#09090b]">
-        <p className="text-xs font-mono uppercase tracking-[0.3em] text-zinc-500">Library Control</p>
-        <h2 className="mt-2 text-lg font-black uppercase tracking-widest text-white">Library Management</h2>
-        <p className="mt-6 text-xs font-mono uppercase tracking-widest text-red-400">
+      <div className="border-4 border-zinc-900 bg-zinc-950 p-5 shadow-[8px_8px_0_0_#09090b]">
+        <p className="text-xs font-mono uppercase tracking-[0.25em] text-zinc-500">Library Control</p>
+        <h2 className="mt-1 text-base font-black uppercase tracking-widest text-white">Library Management</h2>
+        <p className="mt-4 text-xs font-mono uppercase tracking-widest text-red-400">
           Error: {error || 'Failed to load config'}
         </p>
       </div>
@@ -193,268 +193,180 @@ export function LibraryManager() {
   }
 
   return (
-    <div className="border-4 border-zinc-900 bg-zinc-950 p-6 shadow-[10px_10px_0_0_#09090b]">
-      <div className="mb-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+    <div className="border-4 border-zinc-900 bg-zinc-950 p-5 shadow-[8px_8px_0_0_#09090b]">
+      <div className="mb-4 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
         <div>
-          <p className="text-xs font-mono uppercase tracking-[0.3em] text-zinc-500">Library Control</p>
-          <h2 className="mt-2 text-lg font-black uppercase tracking-widest text-white">Library Management</h2>
-          <p className="mt-3 text-xs font-mono uppercase tracking-[0.3em] text-zinc-500">
-            Manage your video library sources
-          </p>
+          <p className="text-xs font-mono uppercase tracking-[0.25em] text-zinc-500">Library Control</p>
+          <h2 className="mt-1 text-base font-black uppercase tracking-widest text-white">Library Management</h2>
         </div>
-        {saving && (
-          <div className="flex items-center gap-2 border-2 border-blue-600 bg-blue-950 px-3 py-2 text-xs font-black uppercase tracking-[0.3em] text-blue-300">
-            <div className="h-3 w-3 animate-spin border-2 border-blue-400 border-t-transparent" />
-            Saving
-          </div>
-        )}
+        <div className="flex items-center gap-3">
+          {saving && (
+            <div className="flex items-center gap-2 border-2 border-blue-600 bg-blue-950 px-3 py-1 text-xs font-black uppercase tracking-[0.25em] text-blue-300">
+              <div className="h-3 w-3 animate-spin border-2 border-blue-400 border-t-transparent" />
+              Saving
+            </div>
+          )}
+          <button
+            onClick={startAdd}
+            disabled={showAddForm || editingIndex !== null}
+            className="border-2 border-green-600 bg-green-950 px-3 py-2 text-xs font-black uppercase tracking-[0.25em] text-green-300 transition-colors hover:border-green-500 hover:text-green-200 disabled:opacity-50"
+          >
+            + Add
+          </button>
+        </div>
       </div>
 
       {error && (
-        <div className="mb-4 border-2 border-red-600 bg-red-950 p-4">
-          <p className="text-xs font-mono uppercase tracking-[0.3em] text-red-300">{error}</p>
+        <div className="mb-4 border-2 border-red-600 bg-red-950 p-3">
+          <p className="text-xs font-mono uppercase tracking-[0.25em] text-red-300">{error}</p>
         </div>
       )}
 
-      <div className="space-y-4">
-        {config.libraries.map((lib, index) => (
-          <div key={index}>
-            {editingIndex === index ? (
-              // Edit Form
-              <div className="border-2 border-blue-600 bg-zinc-950 p-6 shadow-[6px_6px_0_0_#09090b] space-y-5">
-                <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-                  <h3 className="text-lg font-black uppercase tracking-widest text-white">Edit Library</h3>
-                  <span className="inline-flex items-center border-2 border-blue-600 bg-blue-950 px-3 py-1 text-xs font-mono uppercase tracking-[0.3em] text-blue-300">
-                    Editing
-                  </span>
-                </div>
-                <div className="grid gap-4 md:grid-cols-2">
-                  <div>
-                    <label className="mb-2 block text-xs font-mono uppercase tracking-[0.3em] text-zinc-500">
-                      Name
-                    </label>
-                    <input
-                      type="text"
-                      value={formData.name}
-                      onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                      className="w-full border-2 border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-white outline-none transition-all focus:border-blue-500 focus:bg-zinc-950"
-                    />
-                  </div>
-                  <div>
-                    <label className="mb-2 block text-xs font-mono uppercase tracking-[0.3em] text-zinc-500">
-                      Media Type
-                    </label>
-                    <select
-                      value={formData.mediaType}
-                      onChange={(e) => setFormData({ ...formData, mediaType: e.target.value })}
-                      className="w-full border-2 border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-white outline-none transition-all focus:border-blue-500 focus:bg-zinc-950"
-                    >
-                      <option value="channel_archive">Channel Archive</option>
-                      <option value="liked_videos">Liked Videos</option>
-                      <option value="watch_later">Watch Later</option>
-                      <option value="playlist">Playlist</option>
-                    </select>
-                  </div>
-                </div>
-                <div>
-                  <label className="mb-2 block text-xs font-mono uppercase tracking-[0.3em] text-zinc-500">
-                    Path
-                  </label>
-                  <input
-                    type="text"
-                    value={formData.path}
-                    onChange={(e) => setFormData({ ...formData, path: e.target.value })}
-                    className="w-full border-2 border-zinc-800 bg-zinc-900 px-3 py-2 text-sm font-mono text-white outline-none transition-all focus:border-blue-500 focus:bg-zinc-950"
-                  />
-                </div>
-                <div className="flex items-center gap-3 pt-1">
-                  <input
-                    type="checkbox"
-                    checked={formData.skip || false}
-                    onChange={(e) => setFormData({ ...formData, skip: e.target.checked })}
-                    className="h-4 w-4 border-2 border-zinc-700 bg-zinc-900 accent-blue-500 focus:ring-0"
-                  />
-                  <label className="text-xs font-mono uppercase tracking-[0.2em] text-zinc-400">
-                    Skip during scans
-                  </label>
-                </div>
-                <div className="flex flex-col gap-3 border-t-2 border-zinc-800 pt-4 sm:flex-row">
-                  <button
-                    onClick={() => handleEdit(index)}
-                    className="flex-1 border-2 border-blue-600 bg-blue-950 px-4 py-3 text-xs font-black uppercase tracking-[0.3em] text-blue-200 transition-colors hover:border-blue-500 hover:text-blue-100"
-                  >
-                    Save Changes
-                  </button>
-                  <button
-                    onClick={cancelEdit}
-                    className="border-2 border-zinc-800 bg-zinc-900 px-4 py-3 text-xs font-black uppercase tracking-[0.3em] text-zinc-300 transition-colors hover:border-zinc-600 hover:text-white"
-                  >
-                    Cancel
-                  </button>
-                </div>
-              </div>
-            ) : (
-              // Library Card
-              <div
-                className={`group border-2 p-5 shadow-[6px_6px_0_0_#09090b] transition-transform ${
-                  lib.skip
-                    ? 'border-zinc-800 bg-zinc-900/60 opacity-60'
-                    : 'border-zinc-800 bg-zinc-900 hover:-translate-y-1 hover:border-red-600'
-                }`}
-              >
-                <div className="space-y-4">
-                  <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                    <div className="flex-1">
-                      <h3 className="text-lg font-black uppercase tracking-widest text-white">{lib.name}</h3>
-                      <div className="mt-2 flex flex-wrap gap-2">
-                        <span className="inline-flex items-center border-2 border-zinc-800 bg-zinc-950 px-2 py-1 text-xs font-mono uppercase tracking-[0.3em] text-zinc-300">
-                          {lib.mediaType.replace('_', ' ')}
-                        </span>
-                        {lib.skip && (
-                          <span className="inline-flex items-center border-2 border-red-600 bg-red-950 px-2 py-1 text-xs font-mono uppercase tracking-[0.3em] text-red-300">
-                            Disabled
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    {/* Toggle */}
-                    <button
-                      onClick={() => handleToggleSkip(index)}
-                      disabled={saving}
-                      className={`border-2 px-3 py-2 text-xs font-black uppercase tracking-[0.3em] transition-colors disabled:cursor-not-allowed disabled:opacity-50 ${
-                        lib.skip
-                          ? 'border-green-600 bg-green-950 text-green-300 hover:border-green-500 hover:text-green-200'
-                          : 'border-red-600 bg-red-950 text-red-300 hover:border-red-500 hover:text-red-200'
-                      }`}
-                      title={lib.skip ? 'Enable library' : 'Disable library'}
-                    >
-                      {lib.skip ? 'Enable' : 'Disable'}
-                    </button>
-                  </div>
-
-                  <div className="flex items-center gap-3 text-xs font-mono uppercase tracking-[0.2em] text-zinc-500">
-                    <svg className="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
-                    </svg>
-                    <span className="truncate font-mono text-zinc-300 tracking-normal normal-case">{lib.path}</span>
-                  </div>
-
-                  <div className="flex flex-col gap-3 border-t-2 border-zinc-800 pt-4 sm:flex-row">
-                    <button
-                      onClick={() => startEdit(index)}
-                      disabled={saving}
-                      className="flex-1 border-2 border-zinc-800 bg-zinc-900 px-3 py-2 text-xs font-black uppercase tracking-[0.3em] text-zinc-300 transition-colors hover:border-zinc-600 hover:text-white disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => handleDelete(index)}
-                      disabled={saving}
-                      className="border-2 border-zinc-800 bg-zinc-900 px-3 py-2 text-xs font-black uppercase tracking-[0.3em] text-red-300 transition-colors hover:border-red-600 hover:text-red-200 disabled:cursor-not-allowed disabled:opacity-50"
-                    >
-                      Delete
-                    </button>
-                  </div>
-                </div>
-              </div>
-            )}
+      {/* Add/Edit Form */}
+      {(showAddForm || editingIndex !== null) && (
+        <div className={`mb-4 border-2 p-4 shadow-[4px_4px_0_0_#09090b] ${
+          showAddForm ? 'border-green-600 bg-green-950/10' : 'border-blue-600 bg-blue-950/10'
+        }`}>
+          <div className="mb-3 flex items-center justify-between">
+            <h3 className="text-sm font-black uppercase tracking-widest text-white">
+              {showAddForm ? 'Add New Library' : 'Edit Library'}
+            </h3>
+            <span className={`inline-flex items-center border px-2 py-1 text-[10px] font-black uppercase tracking-[0.1em] ${
+              showAddForm ? 'border-green-600 bg-green-950 text-green-300' : 'border-blue-600 bg-blue-950 text-blue-300'
+            }`}>
+              {showAddForm ? 'New' : 'Editing'}
+            </span>
           </div>
-        ))}
-
-        {/* Add Form */}
-        {showAddForm ? (
-          <div className="space-y-5 border-2 border-green-600 bg-zinc-950 p-6 shadow-[6px_6px_0_0_#09090b]">
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <h3 className="text-lg font-black uppercase tracking-widest text-white">Add New Library</h3>
-              <span className="inline-flex items-center border-2 border-green-600 bg-green-950 px-3 py-1 text-xs font-mono uppercase tracking-[0.3em] text-green-300">
-                New
-              </span>
-            </div>
-            <div className="grid gap-4 md:grid-cols-2">
-              <div>
-                <label className="mb-2 block text-xs font-mono uppercase tracking-[0.3em] text-zinc-500">
-                  Name
-                </label>
-                <input
-                  type="text"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="My Archive"
-                  className="w-full border-2 border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-white outline-none transition-all focus:border-green-500 focus:bg-zinc-950"
-                />
-              </div>
-              <div>
-                <label className="mb-2 block text-xs font-mono uppercase tracking-[0.3em] text-zinc-500">
-                  Media Type
-                </label>
-                <select
-                  value={formData.mediaType}
-                  onChange={(e) => setFormData({ ...formData, mediaType: e.target.value })}
-                  className="w-full border-2 border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-white outline-none transition-all focus:border-green-500 focus:bg-zinc-950"
-                >
-                  <option value="channel_archive">Channel Archive</option>
-                  <option value="liked_videos">Liked Videos</option>
-                  <option value="watch_later">Watch Later</option>
-                  <option value="playlist">Playlist</option>
-                </select>
-              </div>
-            </div>
-            <div>
-              <label className="mb-2 block text-xs font-mono uppercase tracking-[0.3em] text-zinc-500">
-                Path
-              </label>
-              <input
-                type="text"
-                value={formData.path}
-                onChange={(e) => setFormData({ ...formData, path: e.target.value })}
-                placeholder="/path/to/library"
-                className="w-full border-2 border-zinc-800 bg-zinc-900 px-3 py-2 text-sm font-mono text-white outline-none transition-all focus:border-green-500 focus:bg-zinc-950"
-              />
-            </div>
-            <div className="flex items-center gap-3 pt-1">
+          <div className="grid gap-3 md:grid-cols-3">
+            <input
+              type="text"
+              value={formData.name}
+              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+              placeholder="Library Name"
+              className="border-2 border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-white outline-none transition-all focus:border-green-500 focus:bg-zinc-950"
+            />
+            <select
+              value={formData.mediaType}
+              onChange={(e) => setFormData({ ...formData, mediaType: e.target.value })}
+              className="border-2 border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-white outline-none transition-all focus:border-green-500 focus:bg-zinc-950"
+            >
+              <option value="channel_archive">Channel Archive</option>
+              <option value="liked_videos">Liked Videos</option>
+              <option value="watch_later">Watch Later</option>
+              <option value="playlist">Playlist</option>
+            </select>
+            <input
+              type="text"
+              value={formData.path}
+              onChange={(e) => setFormData({ ...formData, path: e.target.value })}
+              placeholder="/path/to/library"
+              className="border-2 border-zinc-800 bg-zinc-900 px-3 py-2 text-sm font-mono text-white outline-none transition-all focus:border-green-500 focus:bg-zinc-950"
+            />
+          </div>
+          <div className="mt-3 flex items-center justify-between">
+            <label className="flex items-center gap-2">
               <input
                 type="checkbox"
                 checked={formData.skip || false}
                 onChange={(e) => setFormData({ ...formData, skip: e.target.checked })}
-                className="h-4 w-4 border-2 border-zinc-700 bg-zinc-900 accent-green-500 focus:ring-0"
+                className="h-4 w-4 border-2 border-zinc-700 bg-zinc-900 accent-green-500"
               />
-              <label className="text-xs font-mono uppercase tracking-[0.2em] text-zinc-400">
-                Skip during scans
-              </label>
-            </div>
-            <div className="flex flex-col gap-3 border-t-2 border-zinc-800 pt-4 sm:flex-row">
+              <span className="text-xs font-mono uppercase tracking-[0.15em] text-zinc-400">Skip during scans</span>
+            </label>
+            <div className="flex gap-2">
               <button
-                onClick={handleAdd}
-                className="flex-1 border-2 border-green-600 bg-green-950 px-4 py-3 text-xs font-black uppercase tracking-[0.3em] text-green-200 transition-colors hover:border-green-500 hover:text-green-100"
+                onClick={showAddForm ? handleAdd : () => handleEdit(editingIndex!)}
+                className={`border-2 px-4 py-2 text-xs font-black uppercase tracking-[0.25em] transition-colors ${
+                  showAddForm 
+                    ? 'border-green-600 bg-green-950 text-green-200 hover:border-green-500' 
+                    : 'border-blue-600 bg-blue-950 text-blue-200 hover:border-blue-500'
+                }`}
               >
-                Add Library
+                {showAddForm ? 'Add' : 'Save'}
               </button>
               <button
                 onClick={cancelEdit}
-                className="border-2 border-zinc-800 bg-zinc-900 px-4 py-3 text-xs font-black uppercase tracking-[0.3em] text-zinc-300 transition-colors hover:border-zinc-600 hover:text-white"
+                className="border-2 border-zinc-800 bg-zinc-900 px-4 py-2 text-xs font-black uppercase tracking-[0.25em] text-zinc-300 transition-colors hover:border-zinc-600"
               >
                 Cancel
               </button>
             </div>
           </div>
-        ) : (
-          <button
-            onClick={startAdd}
-            className="flex w-full items-center justify-center gap-3 border-4 border-dashed border-zinc-800 bg-zinc-950 px-4 py-5 text-xs font-black uppercase tracking-[0.3em] text-zinc-500 transition-colors hover:border-red-600 hover:text-white shadow-[6px_6px_0_0_#09090b]"
-          >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-            Add New Library
-          </button>
-        )}
-      </div>
-
-      {config.libraries.length === 0 && !showAddForm && (
-        <p className="py-8 text-center text-xs font-mono uppercase tracking-[0.3em] text-zinc-500">
-          No libraries configured
-        </p>
+        </div>
       )}
+
+      {/* Libraries Table */}
+      {config.libraries.length > 0 ? (
+        <div className="border-2 border-zinc-800 bg-zinc-900 shadow-[4px_4px_0_0_#09090b]">
+          {/* Header */}
+          <div className="border-b-2 border-zinc-800 px-3 py-2 text-xs font-mono uppercase tracking-[0.15em] text-zinc-400">
+            <div className="grid grid-cols-5 gap-4 lg:grid-cols-6">
+              <div>Name</div>
+              <div>Type</div>
+              <div className="col-span-2">Path</div>
+              <div>Status</div>
+              <div className="hidden lg:block">Actions</div>
+            </div>
+          </div>
+          
+          {/* Library rows */}
+          {config.libraries.map((lib, index) => (
+            <div
+              key={index}
+              className={`px-3 py-3 text-xs font-mono ${
+                index !== config.libraries.length - 1 ? 'border-b border-zinc-800' : ''
+              } ${lib.skip ? 'bg-zinc-900/60 opacity-60' : ''}`}
+            >
+              <div className="grid grid-cols-5 gap-4 lg:grid-cols-6 items-center">
+                <div className="font-black text-white uppercase tracking-[0.1em] truncate">
+                  {lib.name}
+                </div>
+                <div className="text-zinc-300 uppercase tracking-[0.1em] text-[11px]">
+                  {lib.mediaType.replace('_', ' ').substring(0, 8)}
+                </div>
+                <div className="col-span-2 text-zinc-400 text-[11px] normal-case tracking-normal truncate">
+                  {lib.path}
+                </div>
+                <div>
+                  <button
+                    onClick={() => handleToggleSkip(index)}
+                    disabled={saving}
+                    className={`inline-flex items-center border px-2 py-1 text-[10px] font-black uppercase tracking-[0.1em] transition-colors disabled:opacity-50 ${
+                      lib.skip
+                        ? 'border-red-600 bg-red-950 text-red-300 hover:border-red-500'
+                        : 'border-green-600 bg-green-950 text-green-300 hover:border-green-500'
+                    }`}
+                  >
+                    {lib.skip ? 'Disabled' : 'Active'}
+                  </button>
+                </div>
+                <div className="hidden lg:flex gap-1">
+                  <button
+                    onClick={() => startEdit(index)}
+                    disabled={saving || showAddForm || editingIndex !== null}
+                    className="border border-zinc-700 bg-zinc-800 px-2 py-1 text-[10px] font-black uppercase tracking-[0.1em] text-zinc-300 hover:border-zinc-500 hover:text-white disabled:opacity-50"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => handleDelete(index)}
+                    disabled={saving}
+                    className="border border-zinc-700 bg-zinc-800 px-2 py-1 text-[10px] font-black uppercase tracking-[0.1em] text-red-300 hover:border-red-600 hover:text-red-200 disabled:opacity-50"
+                  >
+                    Del
+                  </button>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : !showAddForm ? (
+        <div className="border-2 border-dashed border-zinc-800 bg-zinc-900 py-6 text-center">
+          <p className="text-xs font-mono uppercase tracking-[0.25em] text-zinc-500">
+            No libraries configured
+          </p>
+        </div>
+      ) : null}
     </div>
   )
 }

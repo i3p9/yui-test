@@ -20,13 +20,13 @@ export function ConfigurePage() {
   }
 
   return (
-    <div className="px-8 py-10">
-      <section className="border-4 border-zinc-900 bg-zinc-950 px-6 py-8 shadow-[12px_12px_0_0_#09090b]">
-        <div className="flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
+    <div className="px-6 py-6">
+      <section className="border-4 border-zinc-900 bg-zinc-950 px-5 py-6 shadow-[10px_10px_0_0_#09090b]">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
           <div>
-            <span className="text-xs font-mono tracking-[0.35em] text-zinc-600">SYSTEM // CONFIGURATION</span>
-            <h1 className="mt-3 text-4xl font-black leading-none">SCANNER CONFIG</h1>
-            <p className="mt-4 max-w-xl text-sm uppercase tracking-wide text-zinc-500">
+            <span className="text-xs font-mono tracking-[0.3em] text-zinc-600">SYSTEM // CONFIGURATION</span>
+            <h1 className="mt-2 text-3xl font-black leading-none">SCANNER CONFIG</h1>
+            <p className="mt-3 max-w-xl text-sm uppercase tracking-wide text-zinc-500">
               Manage library scanning, monitor progress, and keep the archive disciplined.
             </p>
           </div>
@@ -45,29 +45,41 @@ export function ConfigurePage() {
         </div>
       </section>
 
-      <div className="mt-10 grid grid-cols-1 gap-8 lg:grid-cols-[1.35fr_1fr]">
-        <div className="space-y-8">
-          <ScanControls
-            onScanStarted={handleScanStarted}
-            isScanning={isScanning}
-          />
-          <ScanProgress
-            key={`progress-${refreshKey}`}
-            onScanComplete={handleScanComplete}
-            onStatusChange={setIsScanning}
-          />
-          <VideoStats key={`stats-${refreshKey}`} />
-          <MetadataManager key={`metadata-${refreshKey}`} />
-        </div>
+      {/* Library Setup - Most important, full width */}
+      <div className="mt-6">
+        <LibraryManager />
+      </div>
 
-        <div className="space-y-8">
-          <LibraryManager />
-          <ScanHistory key={`history-${refreshKey}`} />
-          <DangerZone
-            key={`danger-${refreshKey}`}
-            onReset={() => setRefreshKey((k) => k + 1)}
-          />
-        </div>
+      {/* Primary Operations - Two columns */}
+      <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <ScanControls
+          onScanStarted={handleScanStarted}
+          isScanning={isScanning}
+        />
+        <ScanProgress
+          key={`progress-${refreshKey}`}
+          onScanComplete={handleScanComplete}
+          onStatusChange={setIsScanning}
+        />
+      </div>
+
+      {/* Monitoring & Stats - Full width */}
+      <div className="mt-6">
+        <VideoStats key={`stats-${refreshKey}`} />
+      </div>
+
+      {/* Utilities - Two columns */}
+      <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
+        <MetadataManager key={`metadata-${refreshKey}`} />
+        <DangerZone
+          key={`danger-${refreshKey}`}
+          onReset={() => setRefreshKey((k) => k + 1)}
+        />
+      </div>
+
+      {/* Activity History - Full width */}
+      <div className="mt-6">
+        <ScanHistory key={`history-${refreshKey}`} />
       </div>
     </div>
   )
