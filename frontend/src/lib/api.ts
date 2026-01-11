@@ -229,3 +229,61 @@ export const resetDatabase = (options: {
 		method: "POST",
 		body: JSON.stringify(options),
 	});
+
+// Search
+export const searchAutocomplete = (
+	query: string,
+	limits?: { channelLimit?: number; videoLimit?: number }
+) => {
+	const searchParams = new URLSearchParams({ q: query });
+	if (limits?.channelLimit) {
+		searchParams.append('channelLimit', String(limits.channelLimit));
+	}
+	if (limits?.videoLimit) {
+		searchParams.append('videoLimit', String(limits.videoLimit));
+	}
+	return fetchAPI<{
+		query: string;
+		channels: any[];
+		videos: any[];
+	}>(`/search/autocomplete?${searchParams.toString()}`);
+};
+
+export const searchFull = (
+	query: string,
+	options?: {
+		type?: 'all' | 'videos' | 'channels';
+		page?: number;
+		limit?: number;
+	}
+) => {
+	const searchParams = new URLSearchParams({ q: query });
+	if (options?.type) {
+		searchParams.append('type', options.type);
+	}
+	if (options?.page) {
+		searchParams.append('page', String(options.page));
+	}
+	if (options?.limit) {
+		searchParams.append('limit', String(options.limit));
+	}
+	return fetchAPI<{
+		query: string;
+		results: {
+			channels: {
+				items: any[];
+				total: number;
+			};
+			videos: {
+				items: any[];
+				total: number;
+				pagination: {
+					page: number;
+					limit: number;
+					pages: number;
+				};
+			};
+		};
+		totalResults: number;
+	}>(`/search?${searchParams.toString()}`);
+};

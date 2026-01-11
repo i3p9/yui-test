@@ -1,5 +1,6 @@
 import { Link, useLocation } from "react-router-dom";
 import { useState, useEffect } from "react";
+import { SearchInput } from "./SearchInput";
 
 interface LayoutProps {
 	children: React.ReactNode;
@@ -79,29 +80,7 @@ export function Layout({ children }: LayoutProps) {
 						</Link>
 					</div>
 
-					<div className='flex-1 max-w-2xl mx-8'>
-						<div className='bg-zinc-900 border-2 border-zinc-800 flex items-center px-4 py-2'>
-							<input
-								type='text'
-								placeholder='SEARCH'
-								className='flex-1 bg-transparent outline-none text-sm font-mono placeholder-zinc-600'
-								disabled
-							/>
-							<svg
-								className='w-5 h-5 text-zinc-600'
-								fill='none'
-								stroke='currentColor'
-								viewBox='0 0 24 24'
-							>
-								<path
-									strokeLinecap='square'
-									strokeLinejoin='miter'
-									strokeWidth={3}
-									d='M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z'
-								/>
-							</svg>
-						</div>
-					</div>
+					<SearchInput />
 
 					<Link
 						to='/configure'

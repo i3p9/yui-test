@@ -18,6 +18,8 @@ import streamRoutes from "./routes/stream.js";
 import progressRoutes from "./routes/progress.js";
 import metadataRoutes from "./routes/metadata.js";
 import dangerRoutes from "./routes/danger.js";
+import searchRoutes from "./routes/search.js";
+import { MigrationService } from "./services/migration-service.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -51,6 +53,7 @@ await fastify.register(streamRoutes, { prefix: "/api/stream" });
 await fastify.register(progressRoutes, { prefix: "/api/progress" });
 await fastify.register(metadataRoutes, { prefix: "/api/metadata" });
 await fastify.register(dangerRoutes, { prefix: "/api/danger" });
+await fastify.register(searchRoutes, { prefix: "/api/search" });
 
 // Health check
 fastify.get("/api/health", async (request, reply) => {
@@ -118,6 +121,10 @@ fastify.setNotFoundHandler((request, reply) => {
 
 const start = async () => {
 	try {
+		// Run migrations before starting the server
+		const migrationService = new MigrationService();
+		await migrationService.runMigrations();
+
 		await fastify.listen({
 			port: 3001,
 			host: "0.0.0.0",
@@ -133,6 +140,7 @@ const start = async () => {
 		console.log("   Stream:   http://localhost:3001/api/stream");
 		console.log("   Progress: http://localhost:3001/api/progress");
 		console.log("   Metadata: http://localhost:3001/api/metadata");
+		console.log("   Search:   http://localhost:3001/api/search");
 	} catch (err) {
 		fastify.log.error(err);
 		process.exit(1);
