@@ -4,6 +4,7 @@
 // Handles library browsing: latest videos, channels, liked videos, etc.
 
 import { FastifyPluginAsync } from 'fastify';
+import { createReadStream, stat } from 'fs';
 import { getPrismaClient } from '../lib/database.js';
 
 const libraryRoutes: FastifyPluginAsync = async (fastify) => {
@@ -69,6 +70,56 @@ const libraryRoutes: FastifyPluginAsync = async (fastify) => {
     });
 
     return { channels };
+  });
+
+  // GET /api/library/channels/:uploaderId/thumbnail - Serve channel thumbnail image
+  fastify.get('/channels/:uploaderId/thumbnail', async (request, reply) => {
+    const { uploaderId } = request.params as { uploaderId: string };
+
+    try {
+      const channel = await prisma.channel.findUnique({
+        where: { uploaderId },
+        select: { thumbnailPath: true },
+      });
+
+      if (!channel || !channel.thumbnailPath) {
+        return reply.code(404).send({ error: 'Channel thumbnail not found' });
+      }
+
+      // Check if file exists
+      try {
+        await new Promise<void>((resolve, reject) => {
+          stat(channel.thumbnailPath!, (err) => {
+            if (err) reject(err);
+            else resolve();
+          });
+        });
+      } catch {
+        return reply.code(404).send({ error: 'Thumbnail file not found' });
+      }
+
+      // Determine content type based on file extension
+      const ext = channel.thumbnailPath.toLowerCase().split('.').pop();
+      const contentType = {
+        'jpg': 'image/jpeg',
+        'jpeg': 'image/jpeg',
+        'png': 'image/png',
+        'webp': 'image/webp',
+        'gif': 'image/gif',
+      }[ext || ''] || 'image/jpeg';
+
+      // Set headers
+      reply.type(contentType);
+      reply.header('Cache-Control', 'public, max-age=3600'); // Cache for 1 hour
+
+      // Stream the file
+      const stream = createReadStream(channel.thumbnailPath);
+      return reply.send(stream);
+
+    } catch (error) {
+      console.error(`Error serving channel thumbnail for ${uploaderId}:`, error);
+      return reply.code(500).send({ error: 'Failed to serve thumbnail' });
+    }
   });
 
   // GET /api/library/channels/:uploaderId/videos - Get videos for a specific channel

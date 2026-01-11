@@ -46,6 +46,12 @@ export interface VideoCandidate {
 	overrides?: ChannelOverrides;
 }
 
+export interface ChannelImageCandidate {
+	channelId: string;
+	imagePath: string;
+	channelName: string;
+}
+
 export interface ParsedMetadata {
 	videoId: string;
 	title: string;
