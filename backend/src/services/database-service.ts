@@ -9,9 +9,11 @@ import type {
 	Library,
 	ChannelImageCandidate,
 } from "../types/index.js";
+import { SearchService } from "./search-service.js";
 
 export class DatabaseService {
 	private prisma = getPrismaClient();
+	private searchService = new SearchService();
 
 	/**
 	 * Upsert a video (insert or update)
@@ -37,6 +39,8 @@ export class DatabaseService {
 					`Replacing ${metadata.videoId} with larger/better file`
 				);
 				await this.updateVideo(metadata);
+				// Sync with FTS5 after update
+				await this.searchService.syncVideo(metadata.videoId);
 			} else {
 				// Just update scan timestamp
 				await this.prisma.video.update({
@@ -46,11 +50,15 @@ export class DatabaseService {
 						missingOnDisk: false, // Mark as present
 					},
 				});
+				// Sync with FTS5 (in case missing_on_disk changed)
+				await this.searchService.syncVideo(metadata.videoId);
 			}
 		} else {
 			// New video - insert
 			console.log(`Adding new video: ${metadata.videoId}`);
 			await this.insertVideo(metadata);
+			// Sync with FTS5 after insert
+			await this.searchService.syncVideo(metadata.videoId);
 		}
 	}
 
@@ -238,6 +246,9 @@ export class DatabaseService {
 				lastScannedAt: new Date().toISOString(),
 			},
 		});
+
+		// Sync with FTS5 after channel update
+		await this.searchService.syncChannel(uploaderId);
 	}
 
 	/**
@@ -265,6 +276,9 @@ export class DatabaseService {
 				lastScannedAt: new Date().toISOString(),
 			},
 		});
+
+		// Sync with FTS5 after channel thumbnail update
+		await this.searchService.syncChannel(channelImage.channelId);
 	}
 
 	/**
