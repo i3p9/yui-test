@@ -142,6 +142,9 @@ export class ScanOrchestrator {
 				}
 			}
 
+			// Scan for channel images after video scanning
+			await this.scanChannelImages(librariesToScan);
+
 			// Mark videos as missing if they weren't seen
 			const removed = await this.db.markMissingVideos(
 				seenVideoIds,
@@ -193,6 +196,45 @@ export class ScanOrchestrator {
 			select: { videoId: true },
 		});
 		return video !== null;
+	}
+
+	/**
+	 * Scan for channel images and update channel records
+	 */
+	private async scanChannelImages(libraries: any[]): Promise<void> {
+		console.log(`\n${"=".repeat(60)}`);
+		console.log("PHASE 1.5: Scanning Channel Images");
+		console.log("=".repeat(60));
+
+		let totalChannelImages = 0;
+
+		for (const library of libraries) {
+			if (library.skip) {
+				console.log(`Skipping library for channel images: ${library.name}`);
+				continue;
+			}
+
+			console.log(`Scanning channel images in: ${library.name}`);
+
+			try {
+				const channelImages = await this.scanner.scanChannelImages(library);
+				totalChannelImages += channelImages.length;
+
+				for (const channelImage of channelImages) {
+					try {
+						await this.db.updateChannelThumbnail(channelImage);
+						console.log(`✓ Updated channel thumbnail: ${channelImage.channelName}`);
+					} catch (error) {
+						console.error(`Failed to update channel thumbnail for ${channelImage.channelName}:`, error);
+					}
+				}
+			} catch (error) {
+				console.error(`Error scanning channel images in ${library.name}:`, error);
+			}
+		}
+
+		console.log(`Found and processed ${totalChannelImages} channel images`);
+		console.log("=".repeat(60));
 	}
 
 	/**

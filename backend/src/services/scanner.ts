@@ -9,6 +9,7 @@ import type {
 	VideoCandidate,
 	Library,
 	ChannelOverrides,
+	ChannelImageCandidate,
 } from "../types/index.js";
 
 // ============================================
@@ -75,6 +76,14 @@ const YOUTUBE_ID_REGEX = /\[([A-Za-z0-9_-]{11})\]/;
 
 export function extractYouTubeId(text: string): string | null {
 	const match = text.match(YOUTUBE_ID_REGEX);
+	return match ? match[1] : null;
+}
+
+// Extract YouTube Channel ID from brackets [UC...]
+const CHANNEL_ID_REGEX = /\[(UC[A-Za-z0-9_-]{22})\]/;
+
+export function extractChannelId(text: string): string | null {
+	const match = text.match(CHANNEL_ID_REGEX);
 	return match ? match[1] : null;
 }
 
@@ -151,11 +160,15 @@ export class Scanner {
 			console.log(`Checking path: ${currentPath}`);
 			console.log(`  Parent: ${parentPath}`);
 			console.log(`  Root: ${normalizedRootPath}`);
-			console.log(`  Is channel root? ${parentPath === normalizedRootPath}`);
+			console.log(
+				`  Is channel root? ${parentPath === normalizedRootPath}`
+			);
 
 			if (parentPath === normalizedRootPath && !currentOverrides) {
 				// This is a channel root, check for overrides
-				console.log(`  Reading overrides for channel: ${basename(currentPath)}`);
+				console.log(
+					`  Reading overrides for channel: ${basename(currentPath)}`
+				);
 				overrides = await readChannelOverrides(currentPath);
 			}
 			console.log(`  Active overrides:`, overrides);
@@ -248,6 +261,52 @@ export class Scanner {
 	}
 
 	/**
+	 * Detect channel images in a given directory
+	 * Looks for files that match the channel ID pattern
+	 */
+	detectChannelImages(
+		dirPath: string,
+		files: string[]
+	): ChannelImageCandidate[] {
+		const channelImages: ChannelImageCandidate[] = [];
+
+		for (const file of files) {
+			// Check if file is an image
+			if (!isThumbnailFile(file)) continue;
+
+			// Extract channel ID from filename
+			const channelId = extractChannelId(file);
+			if (!channelId) continue;
+
+			// Extract channel name from filename
+			// Pattern: "NA - gabi belle - Videos [UC-...].jpg"
+			// Remove the channel ID part and extract the name
+			let channelName = file
+				.replace(/\[UC[A-Za-z0-9_-]{22}\].*$/, "") // Remove [UC...].ext
+				.replace(/^.*? - /, "") // Remove "NA - " prefix
+				.replace(/ - Videos $/, "") // Remove " - Videos" suffix
+				.trim();
+
+			// Fallback: use directory name if we can't parse the name
+			if (!channelName) {
+				channelName = basename(dirPath);
+			}
+
+			channelImages.push({
+				channelId,
+				imagePath: join(dirPath, file),
+				channelName,
+			});
+
+			console.log(
+				`Found channel image: ${channelName} (${channelId})`
+			);
+		}
+
+		return channelImages;
+	}
+
+	/**
 	 * Scan a single library
 	 */
 	async scanLibrary(library: Library): Promise<VideoCandidate[]> {
@@ -277,5 +336,72 @@ export class Scanner {
 			`Found ${candidates.length} video candidates in ${library.name}`
 		);
 		return candidates;
+	}
+
+	/**
+	 * Scan a single library for channel images
+	 */
+	async scanChannelImages(
+		library: Library
+	): Promise<ChannelImageCandidate[]> {
+		console.log(
+			`Scanning for channel images in: ${library.name} (${library.path})`
+		);
+
+		const channelImages: ChannelImageCandidate[] = [];
+
+		try {
+			await access(library.path);
+		} catch {
+			throw new Error(`Library path does not exist: ${library.path}`);
+		}
+
+		// Walk the library and collect channel images
+		// We need to check directories that might contain channel metadata folders
+		const normalizedRootPath = resolve(library.path);
+		const stack: string[] = [normalizedRootPath];
+
+		while (stack.length > 0) {
+			const currentPath = stack.pop()!;
+
+			// Check for .ignore marker
+			if (await hasIgnoreMarker(currentPath)) {
+				continue;
+			}
+
+			// Read directory contents
+			let entries;
+			try {
+				entries = await readdir(currentPath, { withFileTypes: true });
+			} catch (error) {
+				console.error(`Cannot read directory ${currentPath}:`, error);
+				continue;
+			}
+
+			const files = entries
+				.filter((e) => e.isFile() && !e.name.startsWith("."))
+				.map((e) => e.name);
+
+			const dirs = entries
+				.filter((e) => e.isDirectory() && !e.name.startsWith("."))
+				.map((e) => e.name);
+
+			// Look for channel images in current directory
+			const detectedImages = this.detectChannelImages(
+				currentPath,
+				files
+			);
+			channelImages.push(...detectedImages);
+
+			// Continue traversing subdirectories
+			for (const dir of dirs) {
+				stack.push(join(currentPath, dir));
+			}
+		}
+
+		console.log(
+			`Found ${channelImages.length} channel images in ${library.name}`
+		);
+		return channelImages;
 	}
 }
