@@ -122,6 +122,9 @@ export const getLatestVideos = (params?: {
 export const getChannels = () =>
 	fetchAPI<{ channels: any[] }>("/library/channels");
 
+export const getChannelThumbnailUrl = (uploaderId: string) =>
+	`/api/library/channels/${uploaderId}/thumbnail`;
+
 export const getChannelVideos = (
 	uploaderId: string,
 	params?: { page?: number; limit?: number; sort?: string }

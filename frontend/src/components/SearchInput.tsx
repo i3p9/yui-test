@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { searchAutocomplete } from '../lib/api';
+import { searchAutocomplete, getChannelThumbnailUrl } from '../lib/api';
 
 interface SearchResult {
   channels: Array<{
@@ -165,10 +165,6 @@ export function SearchInput() {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
-  };
-
-  const getChannelThumbnailUrl = (uploaderId: string) => {
-    return `http://localhost:3001/api/library/channels/${uploaderId}/thumbnail`;
   };
 
   return (

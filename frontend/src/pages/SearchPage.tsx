@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useSearchParams, Link } from "react-router-dom";
-import { searchFull } from "../lib/api";
+import { searchFull, getChannelThumbnailUrl } from "../lib/api";
 import { VideoCard } from "../components/VideoCard";
 
 interface SearchResults {
@@ -106,10 +106,6 @@ export function SearchPage() {
 
 	const handlePageChange = (newPage: number) => {
 		updateSearchParams({ page: newPage });
-	};
-
-	const getChannelThumbnailUrl = (uploaderId: string) => {
-		return `http://localhost:3001/api/library/channels/${uploaderId}/thumbnail`;
 	};
 
 	if (!query) {
