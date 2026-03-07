@@ -19,7 +19,7 @@ const API_BASE = "/api";
 // Helper for fetch with error handling
 async function fetchAPI<T>(
 	endpoint: string,
-	options?: RequestInit
+	options?: RequestInit,
 ): Promise<T> {
 	const response = await fetch(`${API_BASE}${endpoint}`, {
 		headers: {
@@ -62,7 +62,7 @@ export const startScan = (options: {
 		{
 			method: "POST",
 			body: JSON.stringify(options),
-		}
+		},
 	);
 
 export const getScanStatus = () =>
@@ -91,7 +91,7 @@ export const getVideos = (params?: {
 	}
 	const query = searchParams.toString();
 	return fetchAPI<PaginatedVideos>(
-		`/videos${query ? `?${query}` : ""}`
+		`/videos${query ? `?${query}` : ""}`,
 	);
 };
 
@@ -115,7 +115,7 @@ export const getLatestVideos = (params?: {
 	}
 	const query = searchParams.toString();
 	return fetchAPI<PaginatedVideos>(
-		`/library/latest${query ? `?${query}` : ""}`
+		`/library/latest${query ? `?${query}` : ""}`,
 	);
 };
 
@@ -127,7 +127,7 @@ export const getChannelThumbnailUrl = (uploaderId: string) =>
 
 export const getChannelVideos = (
 	uploaderId: string,
-	params?: { page?: number; limit?: number; sort?: string }
+	params?: { page?: number; limit?: number; sort?: string },
 ) => {
 	const searchParams = new URLSearchParams();
 	if (params) {
@@ -141,13 +141,14 @@ export const getChannelVideos = (
 	return fetchAPI<{ channel: any; videos: any[]; pagination: any }>(
 		`/library/channels/${uploaderId}/videos${
 			query ? `?${query}` : ""
-		}`
+		}`,
 	);
 };
 
 export const getLikedVideos = (params?: {
 	page?: number;
 	limit?: number;
+	orderBy?: string;
 }) => {
 	const searchParams = new URLSearchParams();
 	if (params) {
@@ -159,18 +160,18 @@ export const getLikedVideos = (params?: {
 	}
 	const query = searchParams.toString();
 	return fetchAPI<PaginatedVideos>(
-		`/library/liked${query ? `?${query}` : ""}`
+		`/library/liked${query ? `?${query}` : ""}`,
 	);
 };
 
 export const getRelatedVideos = (videoId: string, limit = 20) =>
 	fetchAPI<{ videos: any[] }>(
-		`/library/video/${videoId}/related?limit=${limit}`
+		`/library/video/${videoId}/related?limit=${limit}`,
 	);
 
 export const getVideoNavigation = (videoId: string) =>
 	fetchAPI<{ prev: any | null; next: any | null }>(
-		`/library/video/${videoId}/navigation`
+		`/library/video/${videoId}/navigation`,
 	);
 
 // Streaming
@@ -180,7 +181,7 @@ export const getStreamUrl = (videoId: string) =>
 // Thumbnails - new API using videoId and size
 export const getThumbnailUrl = (
 	videoId: string,
-	size: "small" | "large" = "small"
+	size: "small" | "large" = "small",
 ) => `/api/stream/thumbnail/${videoId}/${size}`;
 
 // Legacy thumbnail URL (for backwards compatibility)
@@ -191,14 +192,14 @@ export const getLegacyThumbnailUrl = (filename: string | null) =>
 export const updateWatchProgress = (
 	videoId: string,
 	positionSeconds: number,
-	durationSeconds?: number
+	durationSeconds?: number,
 ) =>
 	fetchAPI<{ success: boolean; progress: any }>(
 		`/progress/${videoId}`,
 		{
 			method: "POST",
 			body: JSON.stringify({ positionSeconds, durationSeconds }),
-		}
+		},
 	);
 
 export const getWatchProgress = (videoId: string) =>
@@ -210,7 +211,7 @@ export const getMetadataStats = () =>
 
 export const startMetadataFetch = (
 	videoIds?: string[],
-	saveLocation?: "with_video" | "app_data"
+	saveLocation?: "with_video" | "app_data",
 ) =>
 	fetchAPI<{ message: string; count: number }>("/metadata/fetch", {
 		method: "POST",
@@ -236,14 +237,14 @@ export const resetDatabase = (options: {
 // Search
 export const searchAutocomplete = (
 	query: string,
-	limits?: { channelLimit?: number; videoLimit?: number }
+	limits?: { channelLimit?: number; videoLimit?: number },
 ) => {
 	const searchParams = new URLSearchParams({ q: query });
 	if (limits?.channelLimit) {
-		searchParams.append('channelLimit', String(limits.channelLimit));
+		searchParams.append("channelLimit", String(limits.channelLimit));
 	}
 	if (limits?.videoLimit) {
-		searchParams.append('videoLimit', String(limits.videoLimit));
+		searchParams.append("videoLimit", String(limits.videoLimit));
 	}
 	return fetchAPI<{
 		query: string;
@@ -255,20 +256,20 @@ export const searchAutocomplete = (
 export const searchFull = (
 	query: string,
 	options?: {
-		type?: 'all' | 'videos' | 'channels';
+		type?: "all" | "videos" | "channels";
 		page?: number;
 		limit?: number;
-	}
+	},
 ) => {
 	const searchParams = new URLSearchParams({ q: query });
 	if (options?.type) {
-		searchParams.append('type', options.type);
+		searchParams.append("type", options.type);
 	}
 	if (options?.page) {
-		searchParams.append('page', String(options.page));
+		searchParams.append("page", String(options.page));
 	}
 	if (options?.limit) {
-		searchParams.append('limit', String(options.limit));
+		searchParams.append("limit", String(options.limit));
 	}
 	return fetchAPI<{
 		query: string;
