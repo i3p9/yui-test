@@ -19,6 +19,8 @@ import progressRoutes from "./routes/progress.js";
 import metadataRoutes from "./routes/metadata.js";
 import dangerRoutes from "./routes/danger.js";
 import searchRoutes from "./routes/search.js";
+import authRoutes from "./routes/auth.js";
+import { authMiddleware } from "./lib/auth.js";
 import { MigrationService } from "./services/migration-service.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -43,6 +45,13 @@ await fastify.register(cors, {
 	origin: "http://localhost:3000",
 	credentials: true,
 });
+
+// Global auth guard — runs before every request
+// Public routes (health, /api/auth/*) are exempted inside the middleware itself
+fastify.addHook("onRequest", authMiddleware);
+
+// Auth routes (always public — login/logout/status)
+await fastify.register(authRoutes, { prefix: "/api/auth" });
 
 // Register API routes
 await fastify.register(scanRoutes, { prefix: "/api/scan" });

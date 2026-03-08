@@ -26,6 +26,8 @@ const ConfigSchema = z.object({
 		fetchMetadata: z.boolean(),
 		metadataConcurrency: z.number(),
 	}),
+	// Optional — if absent, the app runs without auth
+	auth: z.object({ password: z.string() }).optional(),
 });
 
 let cachedConfig: Config | null = null;

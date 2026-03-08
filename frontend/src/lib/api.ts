@@ -13,21 +13,35 @@ import type {
 	DangerStats,
 	ResetResult,
 } from "../types";
+import { getToken, clearToken } from "./auth";
 
 const API_BASE = "/api";
+
+// Fired when any API call gets a 401 — App.tsx listens to redirect to login
+export const AUTH_EXPIRED_EVENT = "yui:auth-expired";
 
 // Helper for fetch with error handling
 async function fetchAPI<T>(
 	endpoint: string,
 	options?: RequestInit
 ): Promise<T> {
+	const token = getToken();
+
 	const response = await fetch(`${API_BASE}${endpoint}`, {
 		headers: {
 			"Content-Type": "application/json",
+			...(token ? { Authorization: `Bearer ${token}` } : {}),
 			...options?.headers,
 		},
 		...options,
 	});
+
+	if (response.status === 401) {
+		// Token expired or invalid — clear it and signal the app to show login
+		clearToken();
+		window.dispatchEvent(new CustomEvent(AUTH_EXPIRED_EVENT));
+		throw new Error("Unauthorized");
+	}
 
 	if (!response.ok) {
 		const error = await response
@@ -38,6 +52,19 @@ async function fetchAPI<T>(
 
 	return response.json();
 }
+
+// Auth
+export const getAuthStatus = () =>
+	fetchAPI<{ authEnabled: boolean }>("/auth/status");
+
+export const login = (password: string) =>
+	fetchAPI<{ token: string }>("/auth/login", {
+		method: "POST",
+		body: JSON.stringify({ password }),
+	});
+
+export const logout = () =>
+	fetchAPI<{ ok: boolean }>("/auth/logout", { method: "POST" });
 
 // Health
 export const getHealth = () => fetchAPI<HealthResponse>("/health");
@@ -123,7 +150,7 @@ export const getChannels = () =>
 	fetchAPI<{ channels: any[] }>("/library/channels");
 
 export const getChannelThumbnailUrl = (uploaderId: string) =>
-	`/api/library/channels/${uploaderId}/thumbnail`;
+	withToken(`/api/library/channels/${uploaderId}/thumbnail`);
 
 export const getChannelVideos = (
 	uploaderId: string,
@@ -175,18 +202,25 @@ export const getVideoNavigation = (videoId: string) =>
 	);
 
 // Streaming
+// Browsers can't send Authorization headers on <video src="..."> or <img src="...">,
+// so we pass the token as a query param for all stream/thumbnail URLs.
+function withToken(url: string): string {
+	const token = getToken();
+	return token ? `${url}?token=${encodeURIComponent(token)}` : url;
+}
+
 export const getStreamUrl = (videoId: string) =>
-	`/api/stream/${videoId}`;
+	withToken(`/api/stream/${videoId}`);
 
 // Thumbnails - new API using videoId and size
 export const getThumbnailUrl = (
 	videoId: string,
 	size: "small" | "large" = "small"
-) => `/api/stream/thumbnail/${videoId}/${size}`;
+) => withToken(`/api/stream/thumbnail/${videoId}/${size}`);
 
 // Legacy thumbnail URL (for backwards compatibility)
 export const getLegacyThumbnailUrl = (filename: string | null) =>
-	filename ? `/api/stream/thumbnail/${filename}` : null;
+	filename ? withToken(`/api/stream/thumbnail/${filename}`) : null;
 
 // Progress
 export const updateWatchProgress = (
