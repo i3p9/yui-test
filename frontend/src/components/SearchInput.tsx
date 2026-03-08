@@ -168,7 +168,7 @@ export function SearchInput() {
   };
 
   return (
-    <div className="relative flex-1 max-w-2xl mx-8">
+    <div className="relative flex-1 max-w-full md:max-w-2xl mx-2 md:mx-8">
       {/* Input */}
       <div className="bg-zinc-900 border-2 border-zinc-800 focus-within:border-red-600 transition-colors flex items-center px-4 py-2">
         <input
