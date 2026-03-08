@@ -202,7 +202,11 @@ const libraryRoutes: FastifyPluginAsync = async (fastify) => {
         },
         skip,
         take: Number(limit),
-        orderBy: { uploadDate: 'desc' },
+        // Order by liked_order ASC (oldest like first), NULLs last.
+        // liked_order is populated either via the one-time Config page import
+        // or auto-assigned as MAX+1 for newly discovered liked videos.
+        // Videos without an order (NULL) sort after all ordered ones.
+        orderBy: [{ likedOrder: { sort: 'asc', nulls: 'last' } }],
         select: {
           videoId: true,
           title: true,

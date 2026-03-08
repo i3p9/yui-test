@@ -55,6 +55,14 @@ model Video {
   // Status
   missingOnDisk          Boolean     @default(false) @map("missing_on_disk") // Was this file deleted?
 
+  // Liked video ordering
+  // Only meaningful for mediaType = 'liked_videos'. Stores a stable integer
+  // representing like order (1 = oldest like, higher = newer like).
+  // NULL means order is unknown. On the UI, NULLs sort last (newest by default).
+  // Populated either via the one-time txt import (Config page) or auto-assigned
+  // as MAX(liked_order)+1 when a brand new liked video is discovered in a scan.
+  likedOrder             Int?        @map("liked_order")
+
   // Timestamps
   firstSeenAt            String      @map("first_seen_at") // When we first discovered this video
   lastScannedAt          String      @map("last_scanned_at") // Last time we saw it in a scan
@@ -68,6 +76,7 @@ model Video {
   @@index([uploadDate])
   @@index([mediaType])
   @@index([missingOnDisk])
+  @@index([likedOrder])
 
   // Map to database table name
   @@map("video")

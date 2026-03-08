@@ -6,6 +6,7 @@ import { ScanHistory } from '../components/ScanHistory'
 import { VideoStats } from '../components/VideoStats'
 import MetadataManager from '../components/MetadataManager'
 import { DangerZone } from '../components/DangerZone'
+import { LikedVideoOrderImport } from '../components/LikedVideoOrderImport'
 
 export function ConfigurePage() {
   const [isScanning, setIsScanning] = useState(false)
@@ -71,6 +72,11 @@ export function ConfigurePage() {
       {/* Utilities - Two columns */}
       <div className="mt-6 grid grid-cols-1 gap-6 lg:grid-cols-2">
         <MetadataManager key={`metadata-${refreshKey}`} />
+        <LikedVideoOrderImport />
+      </div>
+
+      {/* Danger Zone - Full width, kept visually separated at the bottom */}
+      <div className="mt-6">
         <DangerZone
           key={`danger-${refreshKey}`}
           onReset={() => setRefreshKey((k) => k + 1)}

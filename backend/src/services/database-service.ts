@@ -91,6 +91,29 @@ export class DatabaseService {
 	}
 
 	/**
+	 * Auto-assign liked_order for a newly inserted liked video.
+	 *
+	 * Queries the current MAX(liked_order) across all liked_videos rows and
+	 * assigns MAX+1 to the new video. This ensures newly discovered liked
+	 * videos (ones that weren't in the historical txt import) always sort
+	 * after the historically-ordered ones, which is the correct assumption:
+	 * if a video just showed up in a scan, it was liked recently.
+	 *
+	 * Gaps in liked_order are fine — the UI just sorts by the number.
+	 */
+	private async assignLikedOrder(videoId: string): Promise<void> {
+		const result = await this.prisma.$queryRaw<
+			[{ maxOrder: number | null }]
+		>`SELECT MAX(liked_order) as maxOrder FROM video WHERE media_type = 'liked_videos'`;
+
+		const maxOrder = result[0]?.maxOrder ?? 0;
+		await this.prisma.video.update({
+			where: { videoId },
+			data: { likedOrder: maxOrder + 1 },
+		});
+	}
+
+	/**
 	 * Insert a new video
 	 */
 	private async insertVideo(metadata: ParsedMetadata): Promise<void> {
@@ -137,6 +160,12 @@ export class DatabaseService {
 					filesizeBytes: sub.filesizeBytes,
 				})),
 			});
+		}
+
+		// Auto-assign liked_order for new liked videos so they sort after
+		// any historically-imported order entries (i.e. recent likes go last)
+		if (metadata.mediaType === "liked_videos") {
+			await this.assignLikedOrder(metadata.videoId);
 		}
 	}
 

@@ -220,6 +220,34 @@ export const startMetadataFetch = (
 export const getMetadataFetchStatus = () =>
 	fetchAPI<MetadataFetchStatus>("/metadata/status");
 
+// Liked Video Order
+// The liked_order feature lets users order their liked videos chronologically.
+// Since YouTube's API has no "liked at" timestamp, ordering is established via
+// a one-time txt file import (Config page). New liked videos discovered in
+// future scans are automatically assigned MAX(liked_order)+1.
+
+export interface LikedOrderStatus {
+	totalLiked: number;
+	withOrder: number;
+	isImported: boolean;
+}
+
+export interface LikedOrderImportResult {
+	total: number;
+	updated: number;
+	notFound: number;
+}
+
+export const getLikedOrderStatus = () =>
+	fetchAPI<LikedOrderStatus>("/config/liked-order/status");
+
+/** Send the raw text content of the order txt file to the backend for import */
+export const importLikedOrder = (content: string) =>
+	fetchAPI<LikedOrderImportResult>("/config/liked-order/import", {
+		method: "POST",
+		body: JSON.stringify({ content }),
+	});
+
 // Danger Zone
 export const getDangerStats = () =>
 	fetchAPI<DangerStats>("/danger/stats");
