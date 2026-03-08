@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { getChannelVideos } from '../lib/api'
 import { VideoGrid } from '../components/VideoGrid'
+import { useInfiniteScroll } from '../hooks/useInfiniteScroll'
 
 interface Video {
   videoId: string
@@ -27,13 +28,11 @@ export function ChannelVideosPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [page, setPage] = useState(1)
-  const [totalPages, setTotalPages] = useState(1)
+  const [hasMore, setHasMore] = useState(false)
   const [sort, setSort] = useState('uploadDate')
 
   useEffect(() => {
-    if (uploaderId) {
-      loadVideos()
-    }
+    if (uploaderId) loadVideos()
   }, [uploaderId, page, sort])
 
   const loadVideos = async () => {
@@ -44,14 +43,20 @@ export function ChannelVideosPage() {
       setError(null)
       const response = await getChannelVideos(uploaderId, { page, limit: 40, sort })
       setChannel(response.channel)
-      setVideos(response.videos)
-      setTotalPages(response.pagination.pages)
+      // Page 1 replaces the list (handles sort/channel changes); subsequent pages append
+      setVideos((prev) => (page === 1 ? response.videos : [...prev, ...response.videos]))
+      setHasMore(page < response.pagination.pages)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load channel videos')
     } finally {
       setLoading(false)
     }
   }
+
+  const sentinelRef = useInfiniteScroll(
+    () => setPage((p) => p + 1),
+    !loading && hasMore
+  )
 
   if (loading && !channel) {
     return (
@@ -96,7 +101,7 @@ export function ChannelVideosPage() {
               value={sort}
               onChange={(e) => {
                 setSort(e.target.value)
-                setPage(1)
+                setPage(1) // reset to page 1 — loadVideos will replace the list
               }}
               className="bg-zinc-900 border-2 border-zinc-800 px-4 py-2 text-sm font-bold focus:border-red-600 outline-none"
             >
@@ -108,8 +113,8 @@ export function ChannelVideosPage() {
         </div>
       </div>
 
-      {/* Video Grid */}
-      {loading ? (
+      {/* Video Grid — show skeleton/spinner only on initial channel load */}
+      {loading && videos.length === 0 ? (
         <div className="flex items-center justify-center py-20">
           <div className="text-center">
             <div className="inline-block w-16 h-16 border-4 border-red-600 border-t-transparent rounded-full animate-spin mb-4" />
@@ -120,27 +125,21 @@ export function ChannelVideosPage() {
         <VideoGrid videos={videos} />
       )}
 
-      {/* Pagination */}
-      {totalPages > 1 && (
-        <div className="mt-12 flex items-center justify-center gap-4">
-          <button
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
-            disabled={page === 1}
-            className="px-6 py-3 bg-zinc-900 border-2 border-zinc-800 font-bold text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-zinc-800 hover:border-red-600 transition-colors"
-          >
-            PREV
-          </button>
-          <span className="text-sm font-mono text-zinc-400">
-            {page} / {totalPages}
-          </span>
-          <button
-            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-            disabled={page === totalPages}
-            className="px-6 py-3 bg-zinc-900 border-2 border-zinc-800 font-bold text-sm disabled:opacity-50 disabled:cursor-not-allowed hover:bg-zinc-800 hover:border-red-600 transition-colors"
-          >
-            NEXT
-          </button>
+      {/* Sentinel — observed by IntersectionObserver to trigger next page load */}
+      <div ref={sentinelRef} />
+
+      {/* Loading spinner for subsequent pages */}
+      {loading && videos.length > 0 && (
+        <div className="flex justify-center py-12">
+          <div className="inline-block w-10 h-10 border-4 border-red-600 border-t-transparent rounded-full animate-spin" />
         </div>
+      )}
+
+      {/* End of list */}
+      {!hasMore && videos.length > 0 && (
+        <p className="text-center text-xs font-mono text-zinc-700 py-12 tracking-widest uppercase">
+          — End —
+        </p>
       )}
     </div>
   )
