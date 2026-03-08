@@ -148,6 +148,7 @@ export const getChannelVideos = (
 export const getLikedVideos = (params?: {
 	page?: number;
 	limit?: number;
+	sort?: 'asc' | 'desc';
 }) => {
 	const searchParams = new URLSearchParams();
 	if (params) {

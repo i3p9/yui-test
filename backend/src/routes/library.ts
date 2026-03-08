@@ -190,7 +190,9 @@ const libraryRoutes: FastifyPluginAsync = async (fastify) => {
   // GET /api/library/liked - Get liked videos
   fastify.get('/liked', async (request, reply) => {
     const query = request.query as any;
-    const { page = 1, limit = 20 } = query;
+    const { page = 1, limit = 20, sort = 'desc' } = query;
+    // sort: 'desc' = newest like first (default), 'asc' = oldest like first
+    const sortDir = sort === 'asc' ? 'asc' : 'desc';
 
     const skip = (Number(page) - 1) * Number(limit);
 
@@ -202,11 +204,8 @@ const libraryRoutes: FastifyPluginAsync = async (fastify) => {
         },
         skip,
         take: Number(limit),
-        // Order by liked_order ASC (oldest like first), NULLs last.
-        // liked_order is populated either via the one-time Config page import
-        // or auto-assigned as MAX+1 for newly discovered liked videos.
-        // Videos without an order (NULL) sort after all ordered ones.
-        orderBy: [{ likedOrder: { sort: 'asc', nulls: 'last' } }],
+        // NULLs always sort last regardless of direction.
+        orderBy: [{ likedOrder: { sort: sortDir, nulls: 'last' } }],
         select: {
           videoId: true,
           title: true,
