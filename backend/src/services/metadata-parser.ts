@@ -27,45 +27,43 @@ export class MetadataParser {
 	): Promise<ParsedMetadata | null> {
 		try {
 			const videoId = this.findVideoId(candidate);
-			if (!videoId) {
-				console.warn(`No video ID found in ${candidate.path}`);
-				return null;
-			}
+			if (!videoId) return null;
 
 			// Find info.json file
 			const infoJsonFile = candidate.files.find((f) =>
 				f.endsWith(".info.json")
 			);
-			let infoJson: InfoJson | null = null;
-			let infoJsonPath: string | undefined;
-			let infoJsonMtime: string | undefined;
-
-			if (infoJsonFile) {
-				infoJsonPath = join(candidate.path, infoJsonFile);
-				try {
-					const content = await readFile(infoJsonPath, "utf-8");
-					infoJson = JSON.parse(content);
-
-					// Get file modification time for change detection
-					const stats = await stat(infoJsonPath);
-					infoJsonMtime = stats.mtime.toISOString();
-				} catch (error) {
-					console.error(`Failed to parse ${infoJsonPath}:`, error);
-				}
-			}
 
 			const mediaFile = candidate.files.find(isMediaFile);
-			if (!mediaFile) {
-				console.warn(`No media file found in ${candidate.path}`);
-				return null;
-			}
+			if (!mediaFile) return null;
 
 			const videoPath = join(candidate.path, mediaFile);
+			const infoJsonPath = infoJsonFile
+				? join(candidate.path, infoJsonFile)
+				: undefined;
 
-			// Get media file stats
-			const mediaStats = await stat(videoPath);
-			const mediaMtime = mediaStats.mtime.toISOString();
-			const filesizeBytes = mediaStats.size;
+			// Run file I/O in parallel: read info.json + stat both files concurrently
+			let infoJson: InfoJson | null = null;
+			let infoJsonMtime: string | undefined;
+			let mediaMtime: string;
+			let filesizeBytes: number;
+
+			const ioTasks: Promise<any>[] = [
+				stat(videoPath),
+			];
+			if (infoJsonPath) {
+				ioTasks.push(
+					readFile(infoJsonPath, "utf-8").then(async (content) => {
+						infoJson = JSON.parse(content);
+						const s = await stat(infoJsonPath!);
+						infoJsonMtime = s.mtime.toISOString();
+					}).catch(() => { /* info.json parse failure is non-fatal */ })
+				);
+			}
+
+			const [mediaStats] = await Promise.all(ioTasks);
+			mediaMtime = mediaStats.mtime.toISOString();
+			filesizeBytes = mediaStats.size;
 
 			// Find thumbnail
 			const thumbnailFile = this.findThumbnail(candidate.files);

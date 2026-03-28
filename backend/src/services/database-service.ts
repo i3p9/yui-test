@@ -18,11 +18,13 @@ export class DatabaseService {
 	/**
 	 * Upsert a video (insert or update)
 	 * Handles duplicate detection (same video_id in multiple libraries)
+	 * Returns 'added' | 'updated' | 'skipped'
 	 */
 	async upsertVideo(
 		metadata: ParsedMetadata,
-		library: Library
-	): Promise<void> {
+		library: Library,
+		options?: { skipFtsSync?: boolean }
+	): Promise<'added' | 'updated' | 'skipped'> {
 		const existing = await this.prisma.video.findUnique({
 			where: { videoId: metadata.videoId },
 		});
@@ -35,31 +37,49 @@ export class DatabaseService {
 			);
 
 			if (shouldReplace) {
-				console.log(
-					`Replacing ${metadata.videoId} with larger/better file`
-				);
 				await this.updateVideo(metadata);
-				// Sync with FTS5 after update
-				await this.searchService.syncVideo(metadata.videoId);
+				if (!options?.skipFtsSync) await this.searchService.syncVideo(metadata.videoId);
+				return 'updated';
 			} else {
 				// Just update scan timestamp
 				await this.prisma.video.update({
 					where: { videoId: metadata.videoId },
 					data: {
 						lastScannedAt: new Date().toISOString(),
-						missingOnDisk: false, // Mark as present
+						missingOnDisk: false,
 					},
 				});
-				// Sync with FTS5 (in case missing_on_disk changed)
-				await this.searchService.syncVideo(metadata.videoId);
+				return 'skipped';
 			}
 		} else {
-			// New video - insert
-			console.log(`Adding new video: ${metadata.videoId}`);
 			await this.insertVideo(metadata);
-			// Sync with FTS5 after insert
-			await this.searchService.syncVideo(metadata.videoId);
+			if (!options?.skipFtsSync) {
+				await this.searchService.syncVideo(metadata.videoId);
+			}
+			return 'added';
 		}
+	}
+
+	/**
+	 * Rebuild all FTS5 indexes from scratch. Much faster than per-video sync.
+	 */
+	async rebuildFtsIndexes(): Promise<void> {
+		console.log('Rebuilding FTS5 indexes...');
+		// Rebuild videos FTS
+		await this.prisma.$executeRawUnsafe(`DELETE FROM videos_fts`);
+		await this.prisma.$executeRawUnsafe(`
+			INSERT INTO videos_fts(video_id, title, uploader, description)
+			SELECT video_id, COALESCE(title, ''), COALESCE(uploader, ''), COALESCE(description, '')
+			FROM video WHERE missing_on_disk = false
+		`);
+
+		// Rebuild channels FTS
+		await this.prisma.$executeRawUnsafe(`DELETE FROM channels_fts`);
+		await this.prisma.$executeRawUnsafe(`
+			INSERT INTO channels_fts(uploader_id, name)
+			SELECT uploader_id, COALESCE(name, '') FROM channel
+		`);
+		console.log('FTS5 indexes rebuilt.');
 	}
 
 	/**
@@ -83,9 +103,9 @@ export class DatabaseService {
 
 		if (infoChanged || mediaChanged) return true;
 
-		// Check if new file is bigger
-		const existingSize = existing.filesizeBytes || BigInt(0);
-		const newSize = BigInt(newMetadata.filesizeBytes || 0);
+		// Check if new file is bigger (both must be BigInt for comparison)
+		const existingSize = BigInt(existing.filesizeBytes ?? 0);
+		const newSize = BigInt(newMetadata.filesizeBytes ?? 0);
 
 		return newSize > existingSize;
 	}
@@ -223,22 +243,43 @@ export class DatabaseService {
 	}
 
 	/**
-	 * Mark videos as missing that weren't seen in the scan
+	 * Mark videos as missing that weren't seen in the scan.
+	 * Chunks the notIn clause to avoid SQLite variable limits.
 	 */
 	async markMissingVideos(
 		seenVideoIds: Set<string>,
 		libraryPath?: string
 	): Promise<number> {
-		const where = libraryPath
-			? { libraryPath, videoId: { notIn: Array.from(seenVideoIds) } }
-			: { videoId: { notIn: Array.from(seenVideoIds) } };
+		const ids = Array.from(seenVideoIds);
 
-		const result = await this.prisma.video.updateMany({
-			where,
+		// SQLite has a variable limit (~999). Use a temp approach:
+		// First mark ALL as missing (for this library), then un-mark seen ones in chunks.
+		const baseWhere = libraryPath ? { libraryPath } : {};
+
+		// Mark all as missing
+		await this.prisma.video.updateMany({
+			where: { ...baseWhere, missingOnDisk: false },
 			data: { missingOnDisk: true },
 		});
 
-		return result.count;
+		// Un-mark seen videos in chunks of 500
+		const CHUNK_SIZE = 500;
+		let unmarked = 0;
+		for (let i = 0; i < ids.length; i += CHUNK_SIZE) {
+			const chunk = ids.slice(i, i + CHUNK_SIZE);
+			const result = await this.prisma.video.updateMany({
+				where: { ...baseWhere, videoId: { in: chunk } },
+				data: { missingOnDisk: false },
+			});
+			unmarked += result.count;
+		}
+
+		// Count how many ended up missing
+		const missingCount = await this.prisma.video.count({
+			where: { ...baseWhere, missingOnDisk: true },
+		});
+
+		return missingCount;
 	}
 
 	/**
@@ -286,9 +327,6 @@ export class DatabaseService {
 	async updateChannelThumbnail(
 		channelImage: ChannelImageCandidate
 	): Promise<void> {
-		console.log(
-			`Updating channel thumbnail for ${channelImage.channelName} (${channelImage.channelId})`
-		);
 
 		await this.prisma.channel.upsert({
 			where: { uploaderId: channelImage.channelId },

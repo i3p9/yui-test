@@ -67,63 +67,71 @@ export class ScanOrchestrator {
 					continue;
 				}
 
-				console.log(`\n${"=".repeat(60)}`);
-				console.log(`Scanning: ${library.name}`);
-				console.log(`Path: ${library.path}`);
-				console.log("=".repeat(60));
+				console.log(`\nScanning: ${library.name} (${library.path})`);
 
 				try {
 					// Walk the library and find video candidates
 					const candidates = await this.scanner.scanLibrary(library);
 					console.log(`Found ${candidates.length} candidates`);
 
-					for (const candidate of candidates) {
-						try {
-							const metadata = await this.parser.parseCandidate(
-								candidate,
-								library
-							);
+					// Process candidates in batches for concurrency
+					const BATCH_SIZE = 20;
+					for (let i = 0; i < candidates.length; i += BATCH_SIZE) {
+						const batch = candidates.slice(i, i + BATCH_SIZE);
 
-							if (!metadata) {
-								stats.errors.push(
-									`Failed to parse: ${candidate.path}`
+						const results = await Promise.allSettled(
+							batch.map(async (candidate) => {
+								const metadata = await this.parser.parseCandidate(
+									candidate,
+									library
 								);
-								continue;
-							}
 
-							seenVideoIds.add(metadata.videoId);
-							if (metadata.uploaderId) {
-								seenUploaderIds.add(metadata.uploaderId);
-							}
+								if (!metadata) {
+									throw new Error(`Failed to parse: ${candidate.path}`);
+								}
 
-							const existsBefore = await this.videoExists(
-								metadata.videoId
-							);
+								// Skip FTS sync during scan — we rebuild at the end
+								const result = await this.db.upsertVideo(
+									metadata,
+									library,
+									{ skipFtsSync: true }
+								);
 
-							await this.db.upsertVideo(metadata, library);
+								return { metadata, result };
+							})
+						);
 
-							// Track stats
-							stats.videosScanned++;
-							if (!existsBefore) {
-								stats.videosAdded++;
+						// Collect results
+						for (const settled of results) {
+							if (settled.status === 'fulfilled') {
+								const { metadata, result } = settled.value;
+								seenVideoIds.add(metadata.videoId);
+								if (metadata.uploaderId) {
+									seenUploaderIds.add(metadata.uploaderId);
+								}
+								stats.videosScanned++;
+								if (result === 'added') stats.videosAdded++;
+								else if (result === 'updated') stats.videosUpdated++;
 							} else {
-								stats.videosUpdated++;
+								const msg = settled.reason?.message || String(settled.reason);
+								stats.errors.push(msg);
 							}
+						}
 
-							// progress update
-							scanState.updateProgress({
-								videosScanned: stats.videosScanned,
-								videosAdded: stats.videosAdded,
-								videosUpdated: stats.videosUpdated,
-							});
+						// Progress update per batch
+						scanState.updateProgress({
+							videosScanned: stats.videosScanned,
+							videosAdded: stats.videosAdded,
+							videosUpdated: stats.videosUpdated,
+						});
 
-							console.log(`✓ ${metadata.videoId}: ${metadata.title}`);
-						} catch (error) {
-							const msg = `Error processing ${candidate.path}: ${error}`;
-							console.error(msg);
-							stats.errors.push(msg);
+						if (i % 200 === 0 && i > 0) {
+							console.log(`  Processed ${i}/${candidates.length} candidates...`);
 						}
 					}
+
+					console.log(`Processed ${candidates.length} candidates (${stats.videosAdded} new, ${stats.videosUpdated} updated)`);
+
 					// Update channel stats
 					for (const uploaderId of seenUploaderIds) {
 						try {
@@ -142,8 +150,8 @@ export class ScanOrchestrator {
 				}
 			}
 
-			// Scan for channel images after video scanning
-			await this.scanChannelImages(librariesToScan);
+			// Process channel images collected during the walk (no second traversal)
+			await this.processChannelImages();
 
 			// Mark videos as missing if they weren't seen
 			const removed = await this.db.markMissingVideos(
@@ -151,6 +159,9 @@ export class ScanOrchestrator {
 				options?.libraryPath
 			);
 			stats.videosRemoved = removed;
+
+			// Rebuild FTS indexes once (replaces per-video sync)
+			await this.db.rebuildFtsIndexes();
 
 			// PHASE 2: Generate thumbnails if enabled
 			if (config.scanOptions.generateThumbnails) {
@@ -167,15 +178,7 @@ export class ScanOrchestrator {
 			scanState.complete();
 
 			const duration = Date.now() - startTime;
-			console.log(`\n${"=".repeat(60)}`);
-			console.log("Scan complete!");
-			console.log(`Duration: ${(duration / 1000).toFixed(2)}s`);
-			console.log(`Scanned: ${stats.videosScanned}`);
-			console.log(`Added: ${stats.videosAdded}`);
-			console.log(`Updated: ${stats.videosUpdated}`);
-			console.log(`Removed: ${stats.videosRemoved}`);
-			console.log(`Errors: ${stats.errors.length}`);
-			console.log("=".repeat(60));
+			console.log(`\nScan complete! ${(duration / 1000).toFixed(1)}s — ${stats.videosScanned} scanned, ${stats.videosAdded} added, ${stats.videosUpdated} updated, ${stats.videosRemoved} removed, ${stats.errors.length} errors`);
 
 			return {
 				...stats,
@@ -189,52 +192,22 @@ export class ScanOrchestrator {
 		}
 	}
 
-	private async videoExists(videoId: string): Promise<boolean> {
-		const prisma = (this.db as any).prisma;
-		const video = await prisma.video.findUnique({
-			where: { videoId },
-			select: { videoId: true },
-		});
-		return video !== null;
-	}
-
 	/**
 	 * Scan for channel images and update channel records
 	 */
-	private async scanChannelImages(libraries: any[]): Promise<void> {
-		console.log(`\n${"=".repeat(60)}`);
-		console.log("PHASE 1.5: Scanning Channel Images");
-		console.log("=".repeat(60));
+	private async processChannelImages(): Promise<void> {
+		const channelImages = this.scanner.getCollectedChannelImages();
+		if (channelImages.length === 0) return;
 
-		let totalChannelImages = 0;
-
-		for (const library of libraries) {
-			if (library.skip) {
-				console.log(`Skipping library for channel images: ${library.name}`);
-				continue;
-			}
-
-			console.log(`Scanning channel images in: ${library.name}`);
-
+		for (const channelImage of channelImages) {
 			try {
-				const channelImages = await this.scanner.scanChannelImages(library);
-				totalChannelImages += channelImages.length;
-
-				for (const channelImage of channelImages) {
-					try {
-						await this.db.updateChannelThumbnail(channelImage);
-						console.log(`✓ Updated channel thumbnail: ${channelImage.channelName}`);
-					} catch (error) {
-						console.error(`Failed to update channel thumbnail for ${channelImage.channelName}:`, error);
-					}
-				}
+				await this.db.updateChannelThumbnail(channelImage);
 			} catch (error) {
-				console.error(`Error scanning channel images in ${library.name}:`, error);
+				console.error(`Failed to update channel thumbnail for ${channelImage.channelName}:`, error);
 			}
 		}
 
-		console.log(`Found and processed ${totalChannelImages} channel images`);
-		console.log("=".repeat(60));
+		console.log(`Updated ${channelImages.length} channel images`);
 	}
 
 	/**

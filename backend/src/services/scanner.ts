@@ -3,7 +3,7 @@
 // ============================================
 // Walks directory trees and finds video files
 
-import { readdir, stat, access, readFile } from "fs/promises";
+import { readdir, access, readFile } from "fs/promises";
 import { join, basename, dirname, resolve } from "path";
 import type {
 	VideoCandidate,
@@ -87,27 +87,18 @@ export function extractChannelId(text: string): string | null {
 	return match ? match[1] : null;
 }
 
-// Check if directory contains .ignore marker file
-async function hasIgnoreMarker(dirPath: string): Promise<boolean> {
-	try {
-		await access(join(dirPath, ".ignore"));
-		return true;
-	} catch {
-		return false; // File doesn't exist or not accessible
-	}
+// Check if file list contains .ignore marker (no syscall needed)
+function hasIgnoreMarker(fileNames: Set<string>): boolean {
+	return fileNames.has(".ignore");
 }
 
-// Read and parse overrides.txt file from channel root
+// Read and parse overrides.txt file from channel root (single syscall)
 async function readChannelOverrides(
 	dirPath: string
 ): Promise<ChannelOverrides | null> {
 	try {
-		const overridesPath = join(dirPath, "overrides.txt");
-		await access(overridesPath);
-		const content = await readFile(overridesPath, "utf-8");
-		const overrides = JSON.parse(content);
-		console.log(`Found channel overrides in ${dirPath}:`, overrides);
-		return overrides;
+		const content = await readFile(join(dirPath, "overrides.txt"), "utf-8");
+		return JSON.parse(content);
 	} catch {
 		return null; // File doesn't exist or invalid JSON
 	}
@@ -118,73 +109,46 @@ async function readChannelOverrides(
 // ============================================
 
 export class Scanner {
+	// Channel images found during the last walkLibrary call
+	private _channelImages: ChannelImageCandidate[] = [];
+
 	/**
-	 * Walk a library directory and yield video candidates
-	 *
-	 * Algorithm:
-	 * 1. Use a stack-based depth-first traversal (not recursive to avoid stack overflow)
-	 * 2. Check for .ignore markers before descending
-	 * 3. Check for overrides.txt at channel root level
-	 * 4. Identify video containers (directories with media files)
-	 * 5. Identify loose video files with YouTube IDs
-	 * 6. Yield candidates as we find them (async generator pattern)
+	 * Walk a library directory and yield video candidates.
+	 * Also collects channel images during the same traversal
+	 * so we don't need a second walk.
 	 */
 	async *walkLibrary(
 		rootPath: string
 	): AsyncGenerator<VideoCandidate> {
-		// Normalize the root path to ensure consistent comparisons
 		const normalizedRootPath = resolve(rootPath);
+		this._channelImages = [];
 
-		// Stack now stores [path, overrides] tuples
+		// Stack stores [path, overrides] tuples
 		const stack: Array<[string, ChannelOverrides | null]> = [
 			[normalizedRootPath, null],
 		];
 
 		while (stack.length > 0) {
-			// console.log("stack: ", stack);
 			const [currentPath, currentOverrides] = stack.pop()!;
-			// console.log("currentPath: ", currentPath);
 
-			// Check for .ignore marker - skip this directory if found
-			if (await hasIgnoreMarker(currentPath)) {
-				console.log(`Skipping ignored directory: ${currentPath}`);
-				continue;
-			}
-
-			// Check if this is a channel root (immediate child of library root)
-			// and read overrides.txt if present
-			let overrides = currentOverrides;
-			const parentPath = dirname(currentPath);
-
-			// Debug logging
-			console.log(`Checking path: ${currentPath}`);
-			console.log(`  Parent: ${parentPath}`);
-			console.log(`  Root: ${normalizedRootPath}`);
-			console.log(
-				`  Is channel root? ${parentPath === normalizedRootPath}`
-			);
-
-			if (parentPath === normalizedRootPath && !currentOverrides) {
-				// This is a channel root, check for overrides
-				console.log(
-					`  Reading overrides for channel: ${basename(currentPath)}`
-				);
-				overrides = await readChannelOverrides(currentPath);
-			}
-			console.log(`  Active overrides:`, overrides);
-
-			// Read directory contents
+			// Read directory contents (single readdir per directory)
 			let entries;
 			try {
-				entries = await readdir(currentPath, { withFileTypes: true }); //Dirent objects
+				entries = await readdir(currentPath, { withFileTypes: true });
 			} catch (error) {
 				console.error(`Cannot read directory ${currentPath}:`, error);
 				continue;
 			}
-			// console.log("entries: ", entries);
 
-			// Separate files and directories
-			// Filter out hidden files (starting with .)
+			// Build a set of all names for fast lookups (.ignore check etc.)
+			const allNames = new Set(entries.map((e) => e.name));
+
+			// Check for .ignore marker from the listing (no extra syscall)
+			if (allNames.has(".ignore")) {
+				continue;
+			}
+
+			// Separate files and directories (filter hidden)
 			const files = entries
 				.filter((e) => e.isFile() && !e.name.startsWith("."))
 				.map((e) => e.name);
@@ -193,20 +157,33 @@ export class Scanner {
 				.filter((e) => e.isDirectory() && !e.name.startsWith("."))
 				.map((e) => e.name);
 
+			// Check if this is a channel root and read overrides
+			let overrides = currentOverrides;
+			const parentPath = dirname(currentPath);
+
+			if (parentPath === normalizedRootPath && !currentOverrides) {
+				overrides = allNames.has("overrides.txt")
+					? await readChannelOverrides(currentPath)
+					: null;
+			}
+
+			// Detect channel images in this directory (piggyback on same walk)
+			const detectedImages = this.detectChannelImages(currentPath, files);
+			if (detectedImages.length > 0) {
+				this._channelImages.push(...detectedImages);
+			}
+
 			// Check if this directory contains media files
 			const mediaFiles = files.filter(isMediaFile);
 
 			if (mediaFiles.length > 0) {
-				// Extract YouTube IDs from all media files
 				const videoIds = new Set(
 					mediaFiles
 						.map(extractYouTubeId)
 						.filter((id): id is string => id !== null)
 				);
 
-				// Case 1: All media files belong to the SAME video ID
-				// This is a canonical video folder (dedicated to one video)
-				// Example: /Danny Gonzalez/2024-08-02 - Video Title [abc]/video.mp4
+				// Case 1: Canonical video folder (single video ID)
 				if (videoIds.size === 1) {
 					yield {
 						type: "directory",
@@ -214,18 +191,11 @@ export class Scanner {
 						files: files,
 						overrides: overrides || undefined,
 					};
-
-					// Don't descend into canonical video folders
-					continue;
+					continue; // Don't descend
 				}
-
-				// If videoIds.size > 1 or === 0:
-				// This is a container folder with multiple videos
-				// Fall through to process loose videos and continue descending
 			}
 
-			// Case 2: Check for loose video files with YouTube IDs
-			// Example: /Liked/Random Video [abc12345678].mkv
+			// Case 2: Loose video files with YouTube IDs
 			const looseVideos = new Map<string, string[]>();
 
 			for (const file of files) {
@@ -238,11 +208,8 @@ export class Scanner {
 				}
 			}
 
-			// Yield each loose video group
 			for (const [videoId, videoFiles] of looseVideos) {
-				// search all related files if available
 				const relatedFiles = files.filter((f) => f.includes(videoId));
-
 				yield {
 					type: "loose",
 					path: currentPath,
@@ -252,12 +219,18 @@ export class Scanner {
 				};
 			}
 
-			//add subdirs for travarsal
+			// Add subdirs for traversal (reverse to keep original order)
 			for (let i = dirs.length - 1; i >= 0; i--) {
-				//reverse to keep original order
 				stack.push([join(currentPath, dirs[i]), overrides]);
 			}
 		}
+	}
+
+	/**
+	 * Get channel images found during the last walkLibrary call.
+	 */
+	getCollectedChannelImages(): ChannelImageCandidate[] {
+		return this._channelImages;
 	}
 
 	/**
@@ -297,23 +270,16 @@ export class Scanner {
 				imagePath: join(dirPath, file),
 				channelName,
 			});
-
-			console.log(
-				`Found channel image: ${channelName} (${channelId})`
-			);
 		}
 
 		return channelImages;
 	}
 
 	/**
-	 * Scan a single library
+	 * Scan a single library. Returns video candidates.
+	 * Channel images are collected during the walk — retrieve with getCollectedChannelImages().
 	 */
 	async scanLibrary(library: Library): Promise<VideoCandidate[]> {
-		console.log(
-			`Scanning library: ${library.name} (${library.path})`
-		);
-
 		const candidates: VideoCandidate[] = [];
 
 		try {
@@ -322,86 +288,10 @@ export class Scanner {
 			throw new Error(`Library path does not exist: ${library.path}`);
 		}
 
-		// Walk the library and collect all candidates
 		for await (const candidate of this.walkLibrary(library.path)) {
 			candidates.push(candidate);
-			console.log(
-				`Found ${candidate.type} candidate: ${basename(
-					candidate.path
-				)}`
-			);
 		}
 
-		console.log(
-			`Found ${candidates.length} video candidates in ${library.name}`
-		);
 		return candidates;
-	}
-
-	/**
-	 * Scan a single library for channel images
-	 */
-	async scanChannelImages(
-		library: Library
-	): Promise<ChannelImageCandidate[]> {
-		console.log(
-			`Scanning for channel images in: ${library.name} (${library.path})`
-		);
-
-		const channelImages: ChannelImageCandidate[] = [];
-
-		try {
-			await access(library.path);
-		} catch {
-			throw new Error(`Library path does not exist: ${library.path}`);
-		}
-
-		// Walk the library and collect channel images
-		// We need to check directories that might contain channel metadata folders
-		const normalizedRootPath = resolve(library.path);
-		const stack: string[] = [normalizedRootPath];
-
-		while (stack.length > 0) {
-			const currentPath = stack.pop()!;
-
-			// Check for .ignore marker
-			if (await hasIgnoreMarker(currentPath)) {
-				continue;
-			}
-
-			// Read directory contents
-			let entries;
-			try {
-				entries = await readdir(currentPath, { withFileTypes: true });
-			} catch (error) {
-				console.error(`Cannot read directory ${currentPath}:`, error);
-				continue;
-			}
-
-			const files = entries
-				.filter((e) => e.isFile() && !e.name.startsWith("."))
-				.map((e) => e.name);
-
-			const dirs = entries
-				.filter((e) => e.isDirectory() && !e.name.startsWith("."))
-				.map((e) => e.name);
-
-			// Look for channel images in current directory
-			const detectedImages = this.detectChannelImages(
-				currentPath,
-				files
-			);
-			channelImages.push(...detectedImages);
-
-			// Continue traversing subdirectories
-			for (const dir of dirs) {
-				stack.push(join(currentPath, dir));
-			}
-		}
-
-		console.log(
-			`Found ${channelImages.length} channel images in ${library.name}`
-		);
-		return channelImages;
 	}
 }
