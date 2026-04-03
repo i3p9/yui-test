@@ -74,37 +74,35 @@ export class ScanOrchestrator {
 					const candidates = await this.scanner.scanLibrary(library);
 					console.log(`Found ${candidates.length} candidates`);
 
-					// Process candidates in batches for concurrency
+					// Parse metadata in parallel batches, but write to DB sequentially
+					// (SQLite doesn't support concurrent writes)
 					const BATCH_SIZE = 20;
 					for (let i = 0; i < candidates.length; i += BATCH_SIZE) {
 						const batch = candidates.slice(i, i + BATCH_SIZE);
 
-						const results = await Promise.allSettled(
-							batch.map(async (candidate) => {
-								const metadata = await this.parser.parseCandidate(
-									candidate,
-									library
-								);
+						// Parallel parse (file I/O is safe to parallelize)
+						const parseResults = await Promise.allSettled(
+							batch.map((candidate) =>
+								this.parser.parseCandidate(candidate, library)
+							)
+						);
 
-								if (!metadata) {
-									throw new Error(`Failed to parse: ${candidate.path}`);
-								}
+						// Sequential DB writes
+						for (const settled of parseResults) {
+							if (settled.status === 'rejected') {
+								stats.errors.push(settled.reason?.message || String(settled.reason));
+								continue;
+							}
 
-								// Skip FTS sync during scan — we rebuild at the end
+							const metadata = settled.value;
+							if (!metadata) continue;
+
+							try {
 								const result = await this.db.upsertVideo(
 									metadata,
 									library,
 									{ skipFtsSync: true }
 								);
-
-								return { metadata, result };
-							})
-						);
-
-						// Collect results
-						for (const settled of results) {
-							if (settled.status === 'fulfilled') {
-								const { metadata, result } = settled.value;
 								seenVideoIds.add(metadata.videoId);
 								if (metadata.uploaderId) {
 									seenUploaderIds.add(metadata.uploaderId);
@@ -112,9 +110,8 @@ export class ScanOrchestrator {
 								stats.videosScanned++;
 								if (result === 'added') stats.videosAdded++;
 								else if (result === 'updated') stats.videosUpdated++;
-							} else {
-								const msg = settled.reason?.message || String(settled.reason);
-								stats.errors.push(msg);
+							} catch (error) {
+								stats.errors.push(`DB error for ${metadata.videoId}: ${error}`);
 							}
 						}
 
