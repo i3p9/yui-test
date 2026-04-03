@@ -49,6 +49,10 @@ export class DatabaseService {
 						missingOnDisk: false,
 					},
 				});
+				// Backfill liked_order if missing (e.g. added before the bug fix)
+				if (metadata.mediaType === 'liked_videos' && existing.likedOrder === null) {
+					await this.assignLikedOrder(metadata.videoId);
+				}
 				return 'skipped';
 			}
 		} else {
@@ -123,10 +127,10 @@ export class DatabaseService {
 	 */
 	private async assignLikedOrder(videoId: string): Promise<void> {
 		const result = await this.prisma.$queryRaw<
-			[{ maxOrder: number | null }]
+			[{ maxOrder: bigint | null }]
 		>`SELECT MAX(liked_order) as maxOrder FROM video WHERE media_type = 'liked_videos'`;
 
-		const maxOrder = result[0]?.maxOrder ?? 0;
+		const maxOrder = Number(result[0]?.maxOrder ?? 0);
 		await this.prisma.video.update({
 			where: { videoId },
 			data: { likedOrder: maxOrder + 1 },
