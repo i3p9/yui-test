@@ -69,16 +69,29 @@ export class DatabaseService {
 	 */
 	async rebuildFtsIndexes(): Promise<void> {
 		console.log('Rebuilding FTS5 indexes...');
-		// Rebuild videos FTS
-		await this.prisma.$executeRawUnsafe(`DELETE FROM videos_fts`);
+
+		// Drop and recreate to recover from any prior corruption
+		await this.prisma.$executeRawUnsafe(`DROP TABLE IF EXISTS videos_fts`);
+		await this.prisma.$executeRawUnsafe(`
+			CREATE VIRTUAL TABLE videos_fts USING fts5(
+				video_id, title, uploader, description,
+				content='video', content_rowid='rowid'
+			)
+		`);
 		await this.prisma.$executeRawUnsafe(`
 			INSERT INTO videos_fts(video_id, title, uploader, description)
 			SELECT video_id, COALESCE(title, ''), COALESCE(uploader, ''), COALESCE(description, '')
 			FROM video WHERE missing_on_disk = false
 		`);
 
-		// Rebuild channels FTS
-		await this.prisma.$executeRawUnsafe(`DELETE FROM channels_fts`);
+		// Same for channels
+		await this.prisma.$executeRawUnsafe(`DROP TABLE IF EXISTS channels_fts`);
+		await this.prisma.$executeRawUnsafe(`
+			CREATE VIRTUAL TABLE channels_fts USING fts5(
+				uploader_id, name,
+				content='channel', content_rowid='rowid'
+			)
+		`);
 		await this.prisma.$executeRawUnsafe(`
 			INSERT INTO channels_fts(uploader_id, name)
 			SELECT uploader_id, COALESCE(name, '') FROM channel
