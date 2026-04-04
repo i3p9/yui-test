@@ -206,20 +206,31 @@ export class ChannelImageDownloader {
 		const tempDir = await mkdtemp(join(tmpdir(), "yui-channel-images-"));
 
 		try {
-			await execFileAsync(
-				"yt-dlp",
-				[
-					"--playlist-items",
-					"0",
-					"--skip-download",
-					"--write-all-thumbnails",
-					`https://www.youtube.com/channel/${channel.uploaderId}`,
-				],
-				{
-					cwd: tempDir,
-					maxBuffer: 10 * 1024 * 1024,
-				}
-			);
+			try {
+				await execFileAsync(
+					"yt-dlp",
+					[
+						"--playlist-items",
+						"0",
+						"--skip-download",
+						"--write-all-thumbnails",
+						`https://www.youtube.com/channel/${channel.uploaderId}`,
+					],
+					{
+						cwd: tempDir,
+						maxBuffer: 10 * 1024 * 1024,
+					}
+				);
+			} catch (error: any) {
+				const stderr = this.compactOutput(error?.stderr);
+				const stdout = this.compactOutput(error?.stdout);
+				const details = stderr || stdout;
+				return {
+					error: details
+						? `yt-dlp failed for ${channel.uploaderId}: ${details}`
+						: `yt-dlp failed for ${channel.uploaderId}`,
+				};
+			}
 
 			const files = await readdir(tempDir);
 			const avatarSource = files.find((file) =>
@@ -260,21 +271,27 @@ export class ChannelImageDownloader {
 
 			const errors: string[] = [];
 			if (needsAvatar && !updateData.avatarPath) {
-				errors.push(`missing avatar for ${channel.uploaderId}`);
+				errors.push(
+					`yt-dlp completed but emitted no avatar for ${channel.uploaderId}${
+						files.length > 0
+							? ` (files: ${this.describeFiles(files)})`
+							: " (no files emitted)"
+					}`
+				);
 			}
 			if (needsBanner && !updateData.bannerPath) {
-				errors.push(`missing banner for ${channel.uploaderId}`);
+				errors.push(
+					`yt-dlp completed but emitted no banner for ${channel.uploaderId}${
+						files.length > 0
+							? ` (files: ${this.describeFiles(files)})`
+							: " (no files emitted)"
+					}`
+				);
 			}
 
 			return {
 				...updateData,
 				error: errors.length > 0 ? errors.join("; ") : undefined,
-			};
-		} catch (error) {
-			return {
-				error: `download failed for ${channel.uploaderId}: ${
-					error instanceof Error ? error.message : String(error)
-				}`,
 			};
 		} finally {
 			await rm(tempDir, { recursive: true, force: true });
@@ -329,5 +346,26 @@ export class ChannelImageDownloader {
 		} catch {
 			return false;
 		}
+	}
+
+	private describeFiles(files: string[]): string {
+		if (files.length <= 6) {
+			return files.join(", ");
+		}
+
+		return `${files.slice(0, 6).join(", ")} +${files.length - 6} more`;
+	}
+
+	private compactOutput(output: unknown): string | null {
+		if (typeof output !== "string") return null;
+
+		const trimmed = output
+			.split("\n")
+			.map((line) => line.trim())
+			.filter(Boolean)
+			.slice(-3)
+			.join(" | ");
+
+		return trimmed || null;
 	}
 }
