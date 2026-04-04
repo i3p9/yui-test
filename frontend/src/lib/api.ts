@@ -28,13 +28,19 @@ async function fetchAPI<T>(
 	options?: RequestInit
 ): Promise<T> {
 	const token = getToken();
+	const hasBody = options?.body !== undefined && options?.body !== null;
+	const isFormData =
+		typeof FormData !== "undefined" && options?.body instanceof FormData;
+	const headers: HeadersInit = {
+		...(hasBody && !isFormData
+			? { "Content-Type": "application/json" }
+			: {}),
+		...(token ? { Authorization: `Bearer ${token}` } : {}),
+		...options?.headers,
+	};
 
 	const response = await fetch(`${API_BASE}${endpoint}`, {
-		headers: {
-			"Content-Type": "application/json",
-			...(token ? { Authorization: `Bearer ${token}` } : {}),
-			...options?.headers,
-		},
+		headers,
 		...options,
 	});
 
