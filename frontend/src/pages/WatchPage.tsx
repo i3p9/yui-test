@@ -10,7 +10,7 @@ import {
 	updateWatchProgress,
 	getWatchProgress,
 	getThumbnailUrl,
-	getChannelThumbnailUrl,
+	getChannelAvatarUrl,
 } from "../lib/api";
 
 interface Video {
@@ -215,7 +215,7 @@ export function WatchPage() {
 					<div className='flex items-center gap-4 text-sm'>
 						{video.uploaderId && (
 							<img
-								src={getChannelThumbnailUrl(video.uploaderId)}
+								src={getChannelAvatarUrl(video.uploaderId)}
 								alt={video.uploader || "Channel Thumbnail"}
 								className='w-8 h-8 rounded-full'
 							/>
@@ -343,7 +343,7 @@ export function WatchPage() {
 									<div className='flex items-center gap-2'>
 										{relatedVideo.uploaderId && (
 											<img
-												src={getChannelThumbnailUrl(relatedVideo.uploaderId)}
+												src={getChannelAvatarUrl(relatedVideo.uploaderId)}
 												alt={
 													relatedVideo.uploader || "Channel Thumbnail"
 												}

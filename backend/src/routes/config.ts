@@ -11,8 +11,14 @@ import {
 import { writeFile } from "fs/promises";
 import type { Config } from "../types/index.js";
 import { LikedVideoOrderService } from "../services/liked-video-order-service.js";
+import { ChannelImageDownloader } from "../services/channel-image-downloader.js";
+import { channelImageState } from "../lib/channel-image-state.js";
+import { scanState } from "../lib/scan-state.js";
 
 const configRoutes: FastifyPluginAsync = async (fastify) => {
+	let currentDownload: Promise<void> | null = null;
+	const channelImageDownloader = new ChannelImageDownloader();
+
 	// GET /api/config - Get current configuration
 	fastify.get("/", async (request, reply) => {
 		try {
@@ -124,6 +130,48 @@ const configRoutes: FastifyPluginAsync = async (fastify) => {
 				message: String(error),
 			});
 		}
+	});
+
+	// GET /api/config/channel-images/status
+	// Returns current job state plus a DB-level summary of qualifying channels.
+	fastify.get("/channel-images/status", async (request, reply) => {
+		try {
+			const [state, summary] = await Promise.all([
+				Promise.resolve(channelImageState.getState()),
+				channelImageDownloader.getStatusSummary(),
+			]);
+
+			return {
+				...state,
+				isRunning: !!currentDownload,
+				...summary,
+			};
+		} catch (error) {
+			return reply.code(500).send({
+				error: "Failed to get channel image status",
+				message: String(error),
+			});
+		}
+	});
+
+	// POST /api/config/channel-images/download
+	// Starts a fill-missing-only batch for qualifying channels.
+	fastify.post("/channel-images/download", async (request, reply) => {
+		if (currentDownload || scanState.getState().isRunning) {
+			return reply.code(409).send({
+				error: "Channel image download already in progress or scan/metadata job is running",
+			});
+		}
+
+		currentDownload = channelImageDownloader
+			.downloadMissingImages()
+			.finally(() => {
+				currentDownload = null;
+			});
+
+		return {
+			message: "Channel image download started",
+		};
 	});
 };
 

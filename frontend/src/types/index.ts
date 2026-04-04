@@ -103,6 +103,37 @@ export interface Video {
 	lastScannedAt: string;
 }
 
+export interface Channel {
+	uploaderId: string;
+	name: string;
+	description?: string | null;
+	thumbnailPath: string | null;
+	avatarPath: string | null;
+	bannerPath: string | null;
+	videoCount: number;
+	lastUploadDate: string | null;
+	lastScannedAt?: string;
+}
+
+export interface ChannelImageStatus {
+	isRunning: boolean;
+	startedAt?: string;
+	completedAt?: string;
+	totalEligible: number;
+	processed: number;
+	skipped: number;
+	avatarsDownloaded: number;
+	bannersDownloaded: number;
+	failed: number;
+	currentChannel?: string;
+	errors: string[];
+	eligibleChannels: number;
+	completeChannels: number;
+	missingEither: number;
+	missingAvatar: number;
+	missingBanner: number;
+}
+
 export interface VideoDetails extends Video {
 	uploaderId: string | null;
 	description: string | null;

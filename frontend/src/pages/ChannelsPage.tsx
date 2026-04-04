@@ -1,14 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { getChannels, getChannelThumbnailUrl } from "../lib/api";
-
-interface Channel {
-	uploaderId: string;
-	name: string;
-	videoCount: number;
-	lastUploadDate: string | null;
-	thumbnailPath: string | null;
-}
+import { getChannels, getChannelAvatarUrl } from "../lib/api";
+import type { Channel } from "../types";
 
 export function ChannelsPage() {
 	const [channels, setChannels] = useState<Channel[]>([]);
@@ -103,9 +96,9 @@ export function ChannelsPage() {
 					>
 						{/* Channel Avatar */}
 						<div className='w-24 h-24 mx-auto mb-4 bg-zinc-800 border-2 border-zinc-700 group-hover:border-red-600 transition-colors flex items-center justify-center'>
-							{channel.thumbnailPath ? (
+							{channel.avatarPath || channel.thumbnailPath ? (
 								<img
-									src={getChannelThumbnailUrl(channel.uploaderId)}
+									src={getChannelAvatarUrl(channel.uploaderId)}
 									alt={channel.name}
 									className='w-full h-full object-cover'
 								/>

@@ -6,6 +6,7 @@ import { FastifyPluginAsync } from 'fastify';
 import { ScanOrchestrator } from '../services/scan-orchestrator.js';
 import { scanState } from '../lib/scan-state.js';
 import { getPrismaClient } from '../lib/database.js';
+import { channelImageState } from '../lib/channel-image-state.js';
 
 const scanRoutes: FastifyPluginAsync = async (fastify) => {
   let currentScan: Promise<any> | null = null;
@@ -16,9 +17,9 @@ const scanRoutes: FastifyPluginAsync = async (fastify) => {
     const { libraryPath, mode = 'incremental' } = body;
 
     // Check if scan is already running
-    if (currentScan) {
+    if (currentScan || channelImageState.getState().isRunning) {
       return reply.code(409).send({
-        error: 'Scan already in progress',
+        error: 'Scan already in progress or channel image download is running',
         currentScan: scanState.getState(),
       });
     }

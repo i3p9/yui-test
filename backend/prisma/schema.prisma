@@ -111,6 +111,8 @@ model Channel {
   name              String      // Channel name
   description       String?     // Channel description (from channel-level info.json)
   thumbnailPath     String?     @map("thumbnail_path") // Channel avatar/banner
+  avatarPath        String?     @map("avatar_path") // Actively downloaded channel avatar
+  bannerPath        String?     @map("banner_path") // Actively downloaded channel banner
   videoCount        Int         @default(0) @map("video_count") // How many videos we have
   lastUploadDate    String?     @map("last_upload_date") // Most recent video upload date
   lastScannedAt     String      @map("last_scanned_at") // Last time we updated this

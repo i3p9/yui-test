@@ -55,6 +55,20 @@ export interface ChannelImageCandidate {
 	channelName: string;
 }
 
+export interface ChannelImageDownloadProgress {
+	isRunning: boolean;
+	startedAt?: string;
+	completedAt?: string;
+	totalEligible: number;
+	processed: number;
+	skipped: number;
+	avatarsDownloaded: number;
+	bannersDownloaded: number;
+	failed: number;
+	currentChannel?: string;
+	errors: string[];
+}
+
 export interface ParsedMetadata {
 	videoId: string;
 	title: string;

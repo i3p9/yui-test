@@ -17,6 +17,7 @@ export class MigrationService {
     try {
       await this.setupFTS5();
       await this.addLikedOrderColumn();
+      await this.addChannelImageColumns();
       console.log('✅ All migrations completed successfully');
     } catch (error) {
       console.error('❌ Migration failed:', error);
@@ -111,6 +112,39 @@ export class MigrationService {
       `CREATE INDEX IF NOT EXISTS "video_liked_order_idx" ON "video"("liked_order")`
     );
     console.log('✅ liked_order column added');
+  }
+
+  /**
+   * Add avatar_path and banner_path columns to the channel table if they don't exist.
+   *
+   * These are additive nullable columns used by the active channel-image
+   * downloader. Docker production applies the Prisma migration first, but this
+   * startup safety-net keeps older local/dev SQLite databases working too.
+   */
+  async addChannelImageColumns(): Promise<void> {
+    const hasAvatarPath = await this.checkColumnExists('channel', 'avatar_path');
+    const hasBannerPath = await this.checkColumnExists('channel', 'banner_path');
+
+    if (hasAvatarPath && hasBannerPath) {
+      console.log('📝 channel image columns already exist, skipping');
+      return;
+    }
+
+    if (!hasAvatarPath) {
+      console.log('➕ Adding avatar_path column to channel table...');
+      await this.prisma.$executeRawUnsafe(
+        `ALTER TABLE "channel" ADD COLUMN "avatar_path" TEXT`
+      );
+    }
+
+    if (!hasBannerPath) {
+      console.log('➕ Adding banner_path column to channel table...');
+      await this.prisma.$executeRawUnsafe(
+        `ALTER TABLE "channel" ADD COLUMN "banner_path" TEXT`
+      );
+    }
+
+    console.log('✅ channel image columns added');
   }
 
   /**

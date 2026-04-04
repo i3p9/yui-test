@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { searchAutocomplete, getChannelThumbnailUrl } from '../lib/api';
+import { searchAutocomplete, getChannelAvatarUrl } from '../lib/api';
 
 interface SearchResult {
   channels: Array<{
@@ -8,6 +8,7 @@ interface SearchResult {
     name: string;
     videoCount: number;
     thumbnailPath?: string;
+    avatarPath?: string;
   }>;
   videos: Array<{
     videoId: string;
@@ -226,9 +227,9 @@ export function SearchInput() {
                   >
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 bg-zinc-800 border border-zinc-700 flex items-center justify-center flex-shrink-0">
-                        {channel.thumbnailPath ? (
+                        {channel.avatarPath || channel.thumbnailPath ? (
                           <img
-                            src={getChannelThumbnailUrl(channel.uploaderId)}
+                            src={getChannelAvatarUrl(channel.uploaderId)}
                             alt={channel.name}
                             className="w-full h-full object-cover"
                           />

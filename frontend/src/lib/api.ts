@@ -12,6 +12,8 @@ import type {
 	MetadataFetchStatus,
 	DangerStats,
 	ResetResult,
+	Channel,
+	ChannelImageStatus,
 } from "../types";
 import { getToken, clearToken } from "./auth";
 
@@ -147,10 +149,16 @@ export const getLatestVideos = (params?: {
 };
 
 export const getChannels = () =>
-	fetchAPI<{ channels: any[] }>("/library/channels");
+	fetchAPI<{ channels: Channel[] }>("/library/channels");
 
 export const getChannelThumbnailUrl = (uploaderId: string) =>
 	withToken(`/api/library/channels/${uploaderId}/thumbnail`);
+
+export const getChannelAvatarUrl = (uploaderId: string) =>
+	withToken(`/api/library/channels/${uploaderId}/avatar`);
+
+export const getChannelBannerUrl = (uploaderId: string) =>
+	withToken(`/api/library/channels/${uploaderId}/banner`);
 
 export const getChannelVideos = (
 	uploaderId: string,
@@ -165,7 +173,11 @@ export const getChannelVideos = (
 		});
 	}
 	const query = searchParams.toString();
-	return fetchAPI<{ channel: any; videos: any[]; pagination: any }>(
+	return fetchAPI<{
+		channel: Channel;
+		videos: PaginatedVideos["videos"];
+		pagination: PaginatedVideos["pagination"];
+	}>(
 		`/library/channels/${uploaderId}/videos${
 			query ? `?${query}` : ""
 		}`
@@ -254,6 +266,15 @@ export const startMetadataFetch = (
 
 export const getMetadataFetchStatus = () =>
 	fetchAPI<MetadataFetchStatus>("/metadata/status");
+
+// Channel Images
+export const getChannelImageStatus = () =>
+	fetchAPI<ChannelImageStatus>("/config/channel-images/status");
+
+export const startChannelImageDownload = () =>
+	fetchAPI<{ message: string }>("/config/channel-images/download", {
+		method: "POST",
+	});
 
 // Liked Video Order
 // The liked_order feature lets users order their liked videos chronologically.

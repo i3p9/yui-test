@@ -13,6 +13,7 @@ import {
 	type ThumbnailJob,
 } from "../services/thumbnail-generator.js";
 import { scanState } from "../lib/scan-state.js";
+import { channelImageState } from "../lib/channel-image-state.js";
 import { getPrismaClient } from "../lib/database.js";
 import { loadConfig } from "../lib/config.js";
 import { join } from "path";
@@ -109,9 +110,13 @@ const metadataRoutes: FastifyPluginAsync = async (fastify) => {
 		}
 
 		// Check if fetch is already running (or scan is running)
-		if (currentFetch || scanState.getState().isRunning) {
+		if (
+			currentFetch ||
+			scanState.getState().isRunning ||
+			channelImageState.getState().isRunning
+		) {
 			return reply.code(409).send({
-				error: "Fetch already in progress or scan is running",
+				error: "Fetch already in progress or another background job is running",
 			});
 		}
 

@@ -30,6 +30,7 @@ export interface ChannelSearchResult {
   name: string;
   videoCount: number;
   thumbnailPath?: string;
+  avatarPath?: string;
   lastUploadDate?: string;
 }
 
@@ -151,6 +152,7 @@ export class SearchService {
         c.name,
         c.video_count as "videoCount", 
         c.thumbnail_path as "thumbnailPath",
+        c.avatar_path as "avatarPath",
         c.last_upload_date as "lastUploadDate"
       FROM channels_fts fts
       JOIN channel c ON fts.rowid = c.rowid

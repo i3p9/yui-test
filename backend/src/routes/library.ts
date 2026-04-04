@@ -4,8 +4,43 @@
 // Handles library browsing: latest videos, channels, liked videos, etc.
 
 import { FastifyPluginAsync } from 'fastify';
-import { createReadStream, stat } from 'fs';
+import { createReadStream } from 'fs';
+import { access } from 'fs/promises';
+import { extname } from 'path';
 import { getPrismaClient } from '../lib/database.js';
+
+const IMAGE_CONTENT_TYPES: Record<string, string> = {
+	'.jpg': 'image/jpeg',
+	'.jpeg': 'image/jpeg',
+	'.png': 'image/png',
+	'.webp': 'image/webp',
+	'.gif': 'image/gif',
+};
+
+async function fileExists(filePath?: string | null): Promise<boolean> {
+	if (!filePath) return false;
+
+	try {
+		await access(filePath);
+		return true;
+	} catch {
+		return false;
+	}
+}
+
+async function serveImage(
+	reply: any,
+	filePath: string,
+	notFoundMessage: string
+) {
+	if (!(await fileExists(filePath))) {
+		return reply.code(404).send({ error: notFoundMessage });
+	}
+
+	reply.type(IMAGE_CONTENT_TYPES[extname(filePath).toLowerCase()] || 'image/jpeg');
+	reply.header('Cache-Control', 'public, max-age=3600');
+	return reply.send(createReadStream(filePath));
+}
 
 const libraryRoutes: FastifyPluginAsync = async (fastify) => {
   const prisma = getPrismaClient();
@@ -79,46 +114,75 @@ const libraryRoutes: FastifyPluginAsync = async (fastify) => {
     try {
       const channel = await prisma.channel.findUnique({
         where: { uploaderId },
-        select: { thumbnailPath: true },
+        select: { thumbnailPath: true, avatarPath: true },
       });
 
-      if (!channel || !channel.thumbnailPath) {
+      const imagePath = channel?.avatarPath || channel?.thumbnailPath;
+
+      if (!channel || !imagePath) {
         return reply.code(404).send({ error: 'Channel thumbnail not found' });
       }
 
-      // Check if file exists
-      try {
-        await new Promise<void>((resolve, reject) => {
-          stat(channel.thumbnailPath!, (err) => {
-            if (err) reject(err);
-            else resolve();
-          });
-        });
-      } catch {
-        return reply.code(404).send({ error: 'Thumbnail file not found' });
-      }
-
-      // Determine content type based on file extension
-      const ext = channel.thumbnailPath.toLowerCase().split('.').pop();
-      const contentType = {
-        'jpg': 'image/jpeg',
-        'jpeg': 'image/jpeg',
-        'png': 'image/png',
-        'webp': 'image/webp',
-        'gif': 'image/gif',
-      }[ext || ''] || 'image/jpeg';
-
-      // Set headers
-      reply.type(contentType);
-      reply.header('Cache-Control', 'public, max-age=3600'); // Cache for 1 hour
-
-      // Stream the file
-      const stream = createReadStream(channel.thumbnailPath);
-      return reply.send(stream);
-
+      return serveImage(
+        reply,
+        imagePath,
+        'Thumbnail file not found'
+      );
     } catch (error) {
       console.error(`Error serving channel thumbnail for ${uploaderId}:`, error);
       return reply.code(500).send({ error: 'Failed to serve thumbnail' });
+    }
+  });
+
+  // GET /api/library/channels/:uploaderId/avatar - Serve active avatar, falling back to legacy thumbnail
+  fastify.get('/channels/:uploaderId/avatar', async (request, reply) => {
+    const { uploaderId } = request.params as { uploaderId: string };
+
+    try {
+      const channel = await prisma.channel.findUnique({
+        where: { uploaderId },
+        select: { avatarPath: true, thumbnailPath: true },
+      });
+
+      const imagePath = channel?.avatarPath || channel?.thumbnailPath;
+
+      if (!channel || !imagePath) {
+        return reply.code(404).send({ error: 'Channel avatar not found' });
+      }
+
+      return serveImage(
+        reply,
+        imagePath,
+        'Avatar file not found'
+      );
+    } catch (error) {
+      console.error(`Error serving channel avatar for ${uploaderId}:`, error);
+      return reply.code(500).send({ error: 'Failed to serve avatar' });
+    }
+  });
+
+  // GET /api/library/channels/:uploaderId/banner - Serve active channel banner
+  fastify.get('/channels/:uploaderId/banner', async (request, reply) => {
+    const { uploaderId } = request.params as { uploaderId: string };
+
+    try {
+      const channel = await prisma.channel.findUnique({
+        where: { uploaderId },
+        select: { bannerPath: true },
+      });
+
+      if (!channel?.bannerPath) {
+        return reply.code(404).send({ error: 'Channel banner not found' });
+      }
+
+      return serveImage(
+        reply,
+        channel.bannerPath,
+        'Banner file not found'
+      );
+    } catch (error) {
+      console.error(`Error serving channel banner for ${uploaderId}:`, error);
+      return reply.code(500).send({ error: 'Failed to serve banner' });
     }
   });
 

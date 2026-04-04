@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { getChannelVideos } from '../lib/api'
+import { getChannelAvatarUrl, getChannelBannerUrl, getChannelVideos } from '../lib/api'
 import { VideoGrid } from '../components/VideoGrid'
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll'
+import type { Channel } from '../types'
 
 interface Video {
   videoId: string
@@ -13,12 +14,6 @@ interface Video {
   thumbnailPath: string | null
   hasThumbnails?: boolean | null
   thumbnailSource?: string | null
-}
-
-interface Channel {
-  uploaderId: string
-  name: string
-  videoCount: number
 }
 
 export function ChannelVideosPage() {
@@ -85,13 +80,44 @@ export function ChannelVideosPage() {
 
   return (
     <div className="p-8">
+      {channel.bannerPath && (
+        <div className="relative mb-8 aspect-[4/1] overflow-hidden border-4 border-zinc-900 bg-zinc-950 shadow-[10px_10px_0_0_#09090b]">
+          <img
+            src={getChannelBannerUrl(channel.uploaderId)}
+            alt={`${channel.name} banner`}
+            className="h-full w-full object-cover"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
+        </div>
+      )}
+
       {/* Channel Header */}
       <div className="mb-8">
         <div className="flex items-start justify-between mb-4">
-          <div>
-            <h1 className="text-4xl font-black tracking-tight mb-2">{channel.name}</h1>
-            <div className="h-1 w-24 bg-red-600" />
-            <p className="text-zinc-500 text-sm mt-2 font-mono">{channel.videoCount} videos</p>
+          <div className="flex items-start gap-4">
+            <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-full border-4 border-zinc-800 bg-zinc-900">
+              {channel.avatarPath || channel.thumbnailPath ? (
+                <img
+                  src={getChannelAvatarUrl(channel.uploaderId)}
+                  alt={channel.name}
+                  className="h-full w-full object-cover"
+                />
+              ) : (
+                <svg
+                  className="h-10 w-10 text-zinc-600"
+                  fill="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z" />
+                </svg>
+              )}
+            </div>
+
+            <div>
+              <h1 className="text-4xl font-black tracking-tight mb-2">{channel.name}</h1>
+              <div className="h-1 w-24 bg-red-600" />
+              <p className="text-zinc-500 text-sm mt-2 font-mono">{channel.videoCount} videos</p>
+            </div>
           </div>
 
           {/* Sort Dropdown */}

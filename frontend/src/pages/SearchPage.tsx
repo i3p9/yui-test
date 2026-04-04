@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useSearchParams, Link } from "react-router-dom";
-import { searchFull, getChannelThumbnailUrl } from "../lib/api";
-import { VideoCard } from "../components/VideoCard";
+import { searchFull, getChannelAvatarUrl } from "../lib/api";
+import { VideoGrid } from "../components/VideoGrid";
 
 interface SearchResults {
 	query: string;
@@ -12,6 +12,7 @@ interface SearchResults {
 				name: string;
 				videoCount: number;
 				thumbnailPath?: string;
+				avatarPath?: string;
 				lastUploadDate?: string;
 			}>;
 			total: number;
@@ -20,12 +21,13 @@ interface SearchResults {
 			items: Array<{
 				videoId: string;
 				title: string;
-				uploader?: string;
-				uploaderId?: string;
-				uploadDate?: string;
-				durationSeconds?: number;
-				thumbnailPath?: string;
-				hasThumbnails: boolean;
+				uploader: string | null;
+				uploaderId?: string | null;
+				uploadDate: string | null;
+				durationSeconds: number | null;
+				thumbnailPath: string | null;
+				hasThumbnails: boolean | null;
+				thumbnailSource?: string | null;
 				description?: string;
 			}>;
 			total: number;
@@ -241,9 +243,9 @@ export function SearchPage() {
 										>
 											{/* Channel Avatar */}
 											<div className='w-24 h-24 mx-auto mb-4 bg-zinc-800 border-2 border-zinc-700 group-hover:border-red-600 transition-colors flex items-center justify-center'>
-												{channel.thumbnailPath ? (
+												{channel.avatarPath || channel.thumbnailPath ? (
 													<img
-														src={getChannelThumbnailUrl(
+														src={getChannelAvatarUrl(
 															channel.uploaderId
 														)}
 														alt={channel.name}
@@ -339,17 +341,6 @@ export function SearchPage() {
 					)}
 				</div>
 			)}
-		</div>
-	);
-}
-
-// Video Grid component (similar to existing VideoGrid but simplified)
-function VideoGrid({ videos }: { videos: any[] }) {
-	return (
-		<div className='grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6'>
-			{videos.map((video) => (
-				<VideoCard key={video.videoId} video={video} />
-			))}
 		</div>
 	);
 }

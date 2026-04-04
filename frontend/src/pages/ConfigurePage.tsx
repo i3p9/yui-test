@@ -7,6 +7,7 @@ import { VideoStats } from '../components/VideoStats'
 import MetadataManager from '../components/MetadataManager'
 import { DangerZone } from '../components/DangerZone'
 import { LikedVideoOrderImport } from '../components/LikedVideoOrderImport'
+import ChannelImageManager from '../components/ChannelImageManager'
 
 export function ConfigurePage() {
   const [isScanning, setIsScanning] = useState(false)
@@ -67,6 +68,10 @@ export function ConfigurePage() {
       {/* Monitoring & Stats - Full width */}
       <div className="mt-6">
         <VideoStats key={`stats-${refreshKey}`} />
+      </div>
+
+      <div className="mt-6">
+        <ChannelImageManager />
       </div>
 
       {/* Utilities - Two columns */}
