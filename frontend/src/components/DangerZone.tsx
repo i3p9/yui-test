@@ -71,16 +71,16 @@ export function DangerZone({ onReset }: DangerZoneProps) {
     : 0
 
   return (
-    <div className="border-4 border-red-900 bg-zinc-950 p-6 shadow-[10px_10px_0_0_#450a0a]">
+    <div className="border-4 border-zinc-800 bg-zinc-950 p-6 shadow-[10px_10px_0_0_#09090b]">
       <div className="mb-6">
-        <p className="text-xs font-mono uppercase tracking-[0.3em] text-red-500">
+        <p className="text-xs font-mono uppercase tracking-[0.3em] text-zinc-600">
           DEVELOPMENT TOOLS
         </p>
-        <h2 className="mt-2 text-lg font-black tracking-widest text-red-400">
+        <h2 className="mt-2 text-lg font-black tracking-widest text-zinc-200">
           Danger Zone
         </h2>
-        <p className="mt-2 text-xs font-mono uppercase text-zinc-500">
-          Reset database and clean up generated files
+        <p className="mt-2 text-xs font-mono uppercase text-zinc-600">
+          Advanced maintenance. Reset database and clean up generated files.
         </p>
       </div>
 
@@ -123,12 +123,12 @@ export function DangerZone({ onReset }: DangerZoneProps) {
           {!showConfirm ? (
             <button
               onClick={() => setShowConfirm(true)}
-              className="w-full border-4 border-red-800 bg-red-950 px-6 py-4 font-black uppercase tracking-[0.3em] text-red-400 transition-colors hover:border-red-600 hover:text-red-300"
+              className="w-full border-4 border-zinc-700 bg-zinc-900 px-6 py-4 font-black uppercase tracking-[0.3em] text-zinc-300 transition-colors hover:border-red-800 hover:text-red-300"
             >
-              Reset Database
+              Open Reset Controls
             </button>
           ) : (
-            <div className="space-y-4 border-2 border-red-800 bg-red-950/50 p-4">
+            <div className="space-y-4 border-2 border-red-900 bg-red-950/30 p-4">
               <div>
                 <p className="text-sm font-black uppercase tracking-wide text-red-400">
                   Confirm Reset
@@ -196,7 +196,7 @@ export function DangerZone({ onReset }: DangerZoneProps) {
                   }}
                   className="flex-1 border-2 border-zinc-700 bg-zinc-800 px-4 py-3 font-bold uppercase tracking-widest text-zinc-300 transition-colors hover:border-zinc-600 hover:text-white"
                 >
-                  Cancel
+                  Close
                 </button>
                 <button
                   onClick={handleReset}

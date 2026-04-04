@@ -12,6 +12,7 @@ import ChannelImageManager from '../components/ChannelImageManager'
 export function ConfigurePage() {
   const [isScanning, setIsScanning] = useState(false)
   const [refreshKey, setRefreshKey] = useState(0)
+  const [showDangerZone, setShowDangerZone] = useState(false)
 
   const handleScanStarted = () => {
     setRefreshKey((k) => k + 1)
@@ -80,18 +81,47 @@ export function ConfigurePage() {
         <LikedVideoOrderImport />
       </div>
 
-      {/* Danger Zone - Full width, kept visually separated at the bottom */}
-      <div className="mt-6">
-        <DangerZone
-          key={`danger-${refreshKey}`}
-          onReset={() => setRefreshKey((k) => k + 1)}
-        />
-      </div>
-
       {/* Activity History - Full width */}
       <div className="mt-6">
         <ScanHistory key={`history-${refreshKey}`} />
       </div>
+
+      {/* Development Tools - intentionally hidden behind an explicit reveal */}
+      <div className="mt-10 border-2 border-zinc-800 bg-zinc-950 p-5">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div>
+            <p className="text-xs font-mono uppercase tracking-[0.3em] text-zinc-600">
+              Development Tools
+            </p>
+            <h2 className="mt-2 text-base font-black uppercase tracking-widest text-zinc-300">
+              Hidden Reset Controls
+            </h2>
+            <p className="mt-2 text-xs font-mono uppercase text-zinc-600">
+              Kept at the end of the page to reduce accidental use.
+            </p>
+          </div>
+
+          <button
+            onClick={() => setShowDangerZone((value) => !value)}
+            className={`border-2 px-4 py-3 text-xs font-black uppercase tracking-[0.25em] transition-colors ${
+              showDangerZone
+                ? 'border-red-800 bg-red-950 text-red-300 hover:border-red-700'
+                : 'border-zinc-700 bg-zinc-900 text-zinc-300 hover:border-zinc-600 hover:text-white'
+            }`}
+          >
+            {showDangerZone ? 'Hide Development Tools' : 'Show Development Tools'}
+          </button>
+        </div>
+      </div>
+
+      {showDangerZone && (
+        <div className="mt-6">
+          <DangerZone
+            key={`danger-${refreshKey}`}
+            onReset={() => setRefreshKey((k) => k + 1)}
+          />
+        </div>
+      )}
     </div>
   )
 }
