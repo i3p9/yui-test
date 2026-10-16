@@ -12,9 +12,9 @@ Update the volume mounts to point to your actual video libraries:
 services:
   yui:
     volumes:
-      - ./config:/config            # Configuration directory
-      - ./data:/data                # Database
-      - ./thumbnails:/app/.thumbnails  # Thumbnails
+      - ./config:/config # Configuration directory
+      - ./data:/data # Database
+      - ./thumbnails:/app/.thumbnails # Thumbnails
 
       # Add your video library paths here (use :ro for read-only)
       - /actual/path/to/youtube/archive:/media/archive:ro
@@ -22,6 +22,7 @@ services:
 ```
 
 **Important:**
+
 - Left side (`/actual/path/...`): Your real filesystem path on the host
 - Right side (`/media/...`): Container path (you'll use this in the UI)
 - `:ro` makes video libraries read-only (recommended for safety)
@@ -30,15 +31,16 @@ services:
 
 ```bash
 # Build and start the container
-docker-compose up -d --build
+docker compose up -d --build
 
 # Check logs
-docker-compose logs -f yui
+docker compose logs -f yui
 ```
 
 ### 3. First-Time Setup
 
 On first run, YUI will automatically:
+
 1. **Run database migrations** - Creates all necessary tables
 2. **Generate default config** - Creates `config/config.json` with no libraries
 
@@ -51,6 +53,7 @@ Then you can add libraries via the UI:
 5. Click **"Add Library"** - the config will be saved automatically
 
 **Example:**
+
 - If you mounted: `/home/user/videos:/media/archive:ro`
 - Then add a library with path: `/media/archive`
 
@@ -65,12 +68,14 @@ That's it! No manual config file editing needed.
 The library paths you add in the UI must match the container mount paths:
 
 **docker-compose.yml:**
+
 ```yaml
 volumes:
   - /home/user/youtube-dl:/media/youtube:ro
 ```
 
 **In the UI, add library with:**
+
 - **Path:** `/media/youtube` (container path)
 - **Name:** `YouTube Archive`
 - **Type:** `channel_archive`
@@ -85,6 +90,7 @@ The config is automatically saved to `./config/config.json` on your host.
 ### Configuration Updates
 
 You can update the configuration (add/edit/remove libraries) directly from the web UI:
+
 - Navigate to **Library Management** section
 - Add, edit, or toggle libraries
 - Changes are automatically saved to `config.json`
@@ -109,19 +115,19 @@ Generated thumbnails are stored in `./thumbnails` and persist across restarts.
 ### View Logs
 
 ```bash
-docker-compose logs -f yui
+docker compose logs -f yui
 ```
 
 ### Restart Container
 
 ```bash
-docker-compose restart yui
+docker compose restart yui
 ```
 
 ### Stop Container
 
 ```bash
-docker-compose down
+docker compose down
 ```
 
 ### Update YUI
@@ -131,9 +137,9 @@ docker-compose down
 git pull
 
 # Rebuild and restart
-docker-compose down
-docker-compose build
-docker-compose up -d
+docker compose down
+docker compose build
+docker compose up -d
 ```
 
 ### Backup Database
@@ -146,13 +152,13 @@ cp ./data/yui.db ./data/yui.db.backup
 
 ```bash
 # Stop container
-docker-compose down
+docker compose down
 
 # Delete database
 rm ./data/yui.db
 
 # Restart container (will create new database)
-docker-compose up -d
+docker compose up -d
 ```
 
 ## Advanced Configuration
@@ -163,7 +169,7 @@ Edit `docker-compose.yml`:
 
 ```yaml
 ports:
-  - "8080:3001"  # Access on port 8080
+  - "8080:3001" # Access on port 8080
 ```
 
 ### Resource Limits
@@ -176,10 +182,10 @@ services:
     deploy:
       resources:
         limits:
-          cpus: '2'
+          cpus: "2"
           memory: 2G
         reservations:
-          cpus: '1'
+          cpus: "1"
           memory: 1G
 ```
 
@@ -198,11 +204,23 @@ Update config.json accordingly:
 
 ```json
 {
-  "libraries": [
-    {"path": "/media/path1", "mediaType": "channel_archive", "name": "Library 1"},
-    {"path": "/media/path2", "mediaType": "liked_videos", "name": "Library 2"},
-    {"path": "/media/path3", "mediaType": "channel_archive", "name": "Library 3"}
-  ]
+	"libraries": [
+		{
+			"path": "/media/path1",
+			"mediaType": "channel_archive",
+			"name": "Library 1"
+		},
+		{
+			"path": "/media/path2",
+			"mediaType": "liked_videos",
+			"name": "Library 2"
+		},
+		{
+			"path": "/media/path3",
+			"mediaType": "channel_archive",
+			"name": "Library 3"
+		}
+	]
 }
 ```
 
@@ -211,11 +229,13 @@ Update config.json accordingly:
 ### Container won't start
 
 Check logs:
+
 ```bash
-docker-compose logs yui
+docker compose logs yui
 ```
 
 Common issues:
+
 - Invalid config.json syntax
 - Missing volume mounts
 - Port already in use
@@ -223,6 +243,7 @@ Common issues:
 ### Can't access videos
 
 Make sure:
+
 1. Volume paths in docker-compose.yml are correct
 2. Paths in config.json match container paths
 3. Host directories exist and are readable
@@ -240,8 +261,8 @@ chmod -R +r /path/to/videos
 Only one instance of YUI should access the database. Stop other instances:
 
 ```bash
-docker-compose down
-docker-compose up -d
+docker compose down
+docker compose up -d
 ```
 
 ### Migration errors
@@ -250,14 +271,14 @@ If you see migration errors in the logs:
 
 ```bash
 # Stop container
-docker-compose down
+docker compose down
 
 # Check if database is corrupted
 ls -lh ./data/yui.db
 
 # If database is corrupted, backup and reset
 mv ./data/yui.db ./data/yui.db.backup
-docker-compose up -d
+docker compose up -d
 
 # Fresh migrations will run automatically
 ```
@@ -269,6 +290,7 @@ docker-compose up -d
 Put YUI behind Nginx or Caddy:
 
 **Nginx example:**
+
 ```nginx
 server {
     listen 80;
@@ -323,6 +345,7 @@ Docker also performs automatic health checks every 30 seconds.
 ## Support
 
 For issues or questions:
-- Check logs: `docker-compose logs -f yui`
+
+- Check logs: `docker compose logs -f yui`
 - Review this guide
 - Check the main README.md
