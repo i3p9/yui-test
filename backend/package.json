@@ -10,7 +10,8 @@
     "start": "node dist/index.js",
     "test:scanner": "tsx src/test-scanner.ts",
     "test:db": "tsx src/test-db-ingest.ts",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "test:scheduler": "node --import tsx --test tests/scan-scheduler.test.ts tests/scan-api.test.ts"
   },
   "keywords": [],
   "author": "",

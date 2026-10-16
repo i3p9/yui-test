@@ -21,6 +21,7 @@ import dangerRoutes from "./routes/danger.js";
 import searchRoutes from "./routes/search.js";
 import authRoutes from "./routes/auth.js";
 import { authMiddleware } from "./lib/auth.js";
+import { scanScheduler } from "./services/scan-scheduler.js";
 import { MigrationService } from "./services/migration-service.js";
 
 const __filename = fileURLToPath(import.meta.url);
@@ -128,11 +129,19 @@ fastify.setNotFoundHandler((request, reply) => {
 	}
 });
 
+fastify.addHook("onClose", async () => { await scanScheduler.stop(); });
+
+for (const signal of ["SIGINT", "SIGTERM"] as const) {
+	process.once(signal, () => { void fastify.close().then(() => process.exit(0)); });
+}
+
 const start = async () => {
 	try {
 		// Run migrations before starting the server
 		const migrationService = new MigrationService();
 		await migrationService.runMigrations();
+
+		await scanScheduler.start();
 
 		await fastify.listen({
 			port: 3001,

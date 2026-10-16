@@ -1,6 +1,8 @@
 import type {
 	HealthResponse,
 	Config,
+	ScanSchedule,
+	ScanScheduleStatus,
 	Library,
 	ScanProgress,
 	ScanLog,
@@ -84,7 +86,15 @@ export const getLibraries = () =>
 export const updateConfig = (config: Config) =>
 	fetchAPI<{ message: string }>("/config", {
 		method: "POST",
-		body: JSON.stringify(config),
+		// Scheduling has its own editor; avoid sending a stale copy with library edits.
+		body: JSON.stringify({ ...config, scanSchedule: undefined }),
+	});
+
+export const getScanSchedule = () => fetchAPI<ScanScheduleStatus>("/scan/schedule");
+export const updateScanSchedule = (schedule: ScanSchedule) =>
+	fetchAPI<ScanScheduleStatus>("/config/scan-schedule", {
+		method: "PUT",
+		body: JSON.stringify(schedule),
 	});
 
 // Scan

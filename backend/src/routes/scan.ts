@@ -3,35 +3,28 @@
 // ============================================
 
 import { FastifyPluginAsync } from 'fastify';
-import { ScanOrchestrator } from '../services/scan-orchestrator.js';
+import { startScan } from '../services/scan-service.js';
+import { z } from 'zod';
+import { scanScheduler } from '../services/scan-scheduler.js';
 import { scanState } from '../lib/scan-state.js';
 import { getPrismaClient } from '../lib/database.js';
-import { channelImageState } from '../lib/channel-image-state.js';
 
 const scanRoutes: FastifyPluginAsync = async (fastify) => {
-  let currentScan: Promise<any> | null = null;
 
   // POST /api/scan - Trigger a new scan
   fastify.post('/', async (request, reply) => {
-    const body = request.body as any;
-    const { libraryPath, mode = 'incremental' } = body;
-
-    // Check if scan is already running
-    if (currentScan || channelImageState.getState().isRunning) {
+    const parsed = z.object({
+      libraryPath: z.string().optional(),
+      mode: z.enum(['full', 'incremental']).default('incremental'),
+    }).safeParse(request.body ?? {});
+    if (!parsed.success) return reply.code(400).send({ error: 'Invalid scan options' });
+    const { libraryPath, mode } = parsed.data;
+    if (!startScan({ libraryPath, mode })) {
       return reply.code(409).send({
-        error: 'Scan already in progress or channel image download is running',
+        error: 'Another background job is already in progress',
         currentScan: scanState.getState(),
       });
     }
-
-    const orchestrator = new ScanOrchestrator();
-
-    // Start scan in background
-    currentScan = orchestrator
-      .scan({ libraryPath, mode })
-      .finally(() => {
-        currentScan = null;
-      });
 
     return {
       message: 'Scan started',
@@ -46,9 +39,11 @@ const scanRoutes: FastifyPluginAsync = async (fastify) => {
 
     return {
       ...state,
-      isRunning: !!currentScan,
+      isRunning: state.isRunning,
     };
   });
+
+  fastify.get('/schedule', async () => scanScheduler.getStatus());
 
   // GET /api/scan/history - Get scan history
   fastify.get('/history', async (request, reply) => {

@@ -1,11 +1,16 @@
 // Reads and validates config.json from project root
 
-import { readFile, writeFile, mkdir } from "fs/promises";
+import { readFile, writeFile, mkdir, rename } from "fs/promises";
 import { resolve, dirname } from "path";
 import { z } from "zod";
 import type { Config } from "../types/index.js";
 
 // Zod schema for runtime validation
+export const ScanScheduleSchema = z.object({
+	enabled: z.boolean(),
+	intervalHours: z.number().int().min(1).max(8760),
+});
+
 const ConfigSchema = z.object({
 	libraries: z.array(
 		z.object({
@@ -26,11 +31,13 @@ const ConfigSchema = z.object({
 		fetchMetadata: z.boolean(),
 		metadataConcurrency: z.number(),
 	}),
+	scanSchedule: ScanScheduleSchema.default({ enabled: false, intervalHours: 48 }),
 	// Optional — if absent, the app runs without auth
 	auth: z.object({ password: z.string() }).optional(),
 });
 
 let cachedConfig: Config | null = null;
+let pendingUpdate: Promise<unknown> = Promise.resolve();
 
 // Default configuration
 function getDefaultConfig(): Config {
@@ -39,6 +46,7 @@ function getDefaultConfig(): Config {
 		thumbnailDir: ".thumbnails",
 		metadataDir: ".metadata",
 		databaseUrl: process.env.DATABASE_URL || "file:/data/yui.db",
+		scanSchedule: { enabled: false, intervalHours: 48 },
 		scanOptions: {
 			parallelism: 4,
 			followSymlinks: false,
@@ -123,4 +131,18 @@ export async function loadConfig(): Promise<Config> {
 
 export function clearConfigCache(): void {
 	cachedConfig = null;
+}
+
+// Serialize independent settings editors and replace the file atomically.
+export function updateConfig(update: (current: Config) => Config): Promise<Config> {
+	const operation = pendingUpdate.then(async () => {
+		const config = update(await loadConfig());
+		const configPath = getConfigPath();
+		await writeFile(`${configPath}.tmp`, JSON.stringify(config, null, 2), "utf-8");
+		await rename(`${configPath}.tmp`, configPath);
+		clearConfigCache();
+		return config;
+	});
+	pendingUpdate = operation.catch(() => {});
+	return operation;
 }

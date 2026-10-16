@@ -7,6 +7,7 @@ Self-hosted web application for browsing and managing offline YouTube archives c
 - **File System Scanner** - Discovers videos from yt-dlp downloads
 - **Metadata Parsing** - Extracts info from `.info.json` files and filenames
 - **Web UI** - Scanner management interface with real-time progress
+- **Automatic Scans** - Optional incremental scans every 48 hours, with a configurable interval
 - **REST API** - Comprehensive API for video queries and scan management
 - **SQLite Database** - Fast local storage with Prisma ORM
 - **Docker Ready** - Easy deployment with Docker Compose
@@ -66,6 +67,20 @@ Then you can add libraries:
 **No manual setup needed!** Everything is configured via the UI.
 
 See [DEPLOYMENT.md](DEPLOYMENT.md) for complete deployment documentation.
+
+## Automatic Library Scans
+
+Open **Configure → Scan Controls → Automatic scans**, enable scheduling, choose an
+interval in hours, and click **Save schedule**. The default interval is **48 hours**;
+automatic scanning stays off until enabled. The next scan time appears below the controls.
+
+Scheduled scans use the existing incremental scan pipeline across active libraries.
+They wait for scans, metadata fetches, and channel image downloads to finish.
+YUI must be running to perform scans; after a restart, an overdue schedule runs once.
+Settings and the next run time persist in the configuration directory.
+
+See [Automatic Scans](docs/AUTOMATIC_SCANS.md) for timing behavior, configuration,
+API examples, and deployment details.
 
 ---
 

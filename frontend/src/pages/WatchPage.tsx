@@ -141,11 +141,48 @@ export function WatchPage() {
 
 	if (loading && !video) {
 		return (
-			<div className='flex items-center justify-center h-screen'>
-				<div className='text-center'>
-					<div className='inline-block w-16 h-16 border-4 border-red-600 border-t-transparent rounded-full animate-spin mb-4' />
-					<p className='text-zinc-400 font-bold'>LOADING...</p>
+			<div className='flex h-full overflow-hidden bg-black'>
+				<div className='flex-1 overflow-y-auto'>
+					{/* Skeleton player */}
+					<div className='bg-black p-6'>
+						<div className='w-full aspect-video bg-zinc-900 animate-pulse' />
+					</div>
+					{/* Skeleton info */}
+					<div className='p-6 space-y-6'>
+						<div>
+							<div className='h-7 w-3/4 bg-zinc-800 animate-pulse rounded' />
+							<div className='h-1 w-16 bg-red-600 mt-2' />
+						</div>
+						<div className='flex items-center gap-4'>
+							<div className='w-8 h-8 rounded-full bg-zinc-800 animate-pulse' />
+							<div className='h-4 w-32 bg-zinc-800 animate-pulse rounded' />
+							<div className='h-4 w-24 bg-zinc-800 animate-pulse rounded' />
+						</div>
+						<div className='space-y-2'>
+							<div className='h-4 w-full bg-zinc-800 animate-pulse rounded' />
+							<div className='h-4 w-5/6 bg-zinc-800 animate-pulse rounded' />
+							<div className='h-4 w-2/3 bg-zinc-800 animate-pulse rounded' />
+						</div>
+					</div>
 				</div>
+				{/* Skeleton sidebar */}
+				<aside className='w-96 bg-zinc-950 border-l-4 border-zinc-900 overflow-y-auto flex-shrink-0'>
+					<div className='p-4'>
+						<div className='h-5 w-24 bg-zinc-800 animate-pulse rounded mb-4' />
+						<div className='space-y-4'>
+							{Array.from({ length: 6 }).map((_, i) => (
+								<div key={i} className='flex gap-3'>
+									<div className='w-40 aspect-video bg-zinc-800 animate-pulse flex-shrink-0' />
+									<div className='flex-1 space-y-2'>
+										<div className='h-4 w-full bg-zinc-800 animate-pulse rounded' />
+										<div className='h-4 w-3/4 bg-zinc-800 animate-pulse rounded' />
+										<div className='h-3 w-1/2 bg-zinc-800 animate-pulse rounded' />
+									</div>
+								</div>
+							))}
+						</div>
+					</div>
+				</aside>
 			</div>
 		);
 	}

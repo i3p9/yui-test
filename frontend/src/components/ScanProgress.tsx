@@ -36,14 +36,11 @@ export function ScanProgress({
 		// Initial fetch
 		fetchStatus();
 
-		// Only poll if currently scanning
-		let interval: ReturnType<typeof setInterval> | null = null;
-		if (status?.isRunning || !status) {
-			interval = setInterval(fetchStatus, 1000);
-		}
+		// Keep watching while idle so scheduled scans appear automatically.
+		const interval = setInterval(fetchStatus, status?.isRunning ? 1000 : 5000);
 
 		return () => {
-			if (interval) clearInterval(interval);
+			clearInterval(interval);
 		};
 	}, [wasRunning, onScanComplete, onStatusChange, status?.isRunning]);
 

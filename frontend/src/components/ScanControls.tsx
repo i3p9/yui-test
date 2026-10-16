@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { startScan } from "../lib/api";
+import { ScanScheduleControls } from "./ScanScheduleControls";
 
 interface ScanControlsProps {
 	onScanStarted: () => void;
@@ -134,6 +135,7 @@ export function ScanControls({
 					</div>
 				)}
 			</div>
+			<ScanScheduleControls />
 		</div>
 	);
 }

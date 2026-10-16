@@ -5,14 +5,16 @@
 import { FastifyPluginAsync } from "fastify";
 import {
 	loadConfig,
-	clearConfigCache,
+	updateConfig,
 	getConfigPath,
+	ScanScheduleSchema,
 } from "../lib/config.js";
-import { writeFile } from "fs/promises";
+import { scanScheduler } from "../services/scan-scheduler.js";
 import type { Config } from "../types/index.js";
 import { LikedVideoOrderService } from "../services/liked-video-order-service.js";
 import { ChannelImageDownloader } from "../services/channel-image-downloader.js";
 import { channelImageState } from "../lib/channel-image-state.js";
+import { acquireBackgroundJob } from "../lib/background-job.js";
 import { scanState } from "../lib/scan-state.js";
 
 const configRoutes: FastifyPluginAsync = async (fastify) => {
@@ -39,7 +41,7 @@ const configRoutes: FastifyPluginAsync = async (fastify) => {
 
 			// Validate the config structure
 			if (
-				!newConfig.libraries ||
+				!newConfig?.libraries ||
 				!Array.isArray(newConfig.libraries)
 			) {
 				return reply.code(400).send({
@@ -47,21 +49,20 @@ const configRoutes: FastifyPluginAsync = async (fastify) => {
 				});
 			}
 
-			// Write to config.json
-			const configPath = getConfigPath();
-			await writeFile(
-				configPath,
-				JSON.stringify(newConfig, null, 2),
-				"utf-8"
-			);
-			console.log("✓ Config updated at:", configPath);
-
-			// Clear cache so next load reads the new file
-			clearConfigCache();
+			// Library editors omit the schedule so a stale copy cannot replace it.
+			const schedule = newConfig.scanSchedule === undefined
+				? undefined : ScanScheduleSchema.safeParse(newConfig.scanSchedule);
+			if (schedule && !schedule.success) return reply.code(400).send({ error: "Invalid scan schedule: use a boolean enabled and an integer intervalHours from 1 to 8760" });
+			const savedConfig = await updateConfig((current) => ({
+				...newConfig,
+				scanSchedule: schedule?.data ?? current.scanSchedule,
+			}));
+			console.log("✓ Config updated at:", getConfigPath());
+			await scanScheduler.refresh();
 
 			return {
 				message: "Config updated successfully",
-				config: newConfig,
+				config: savedConfig,
 			};
 		} catch (error) {
 			return reply.code(500).send({
@@ -69,6 +70,15 @@ const configRoutes: FastifyPluginAsync = async (fastify) => {
 				message: String(error),
 			});
 		}
+	});
+
+	// PUT /api/config/scan-schedule - Update only scheduling settings.
+	fastify.put("/scan-schedule", async (request, reply) => {
+		const parsed = ScanScheduleSchema.safeParse(request.body);
+		if (!parsed.success) return reply.code(400).send({ error: "Interval must be a whole number from 1 to 8760 hours; enabled must be a boolean" });
+		await updateConfig((current) => ({ ...current, scanSchedule: parsed.data }));
+		await scanScheduler.refresh();
+		return scanScheduler.getStatus();
 	});
 
 	// GET /api/config/libraries - Get just the libraries
@@ -163,10 +173,18 @@ const configRoutes: FastifyPluginAsync = async (fastify) => {
 			});
 		}
 
+		const release = acquireBackgroundJob("channel-images");
+		if (!release) return reply.code(409).send({ error: "Another background job is running" });
 		currentDownload = channelImageDownloader
 			.downloadMissingImages()
+			.catch((error) => {
+				channelImageState.addError(String(error));
+				channelImageState.complete();
+				fastify.log.error(error);
+			})
 			.finally(() => {
 				currentDownload = null;
+				release();
 			});
 
 		return {

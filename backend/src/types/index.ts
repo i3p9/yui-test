@@ -4,9 +4,15 @@ export interface Config {
 	metadataDir: string;
 	databaseUrl: string;
 	scanOptions: ScanOptions;
+	scanSchedule: ScanSchedule;
 	// Optional password gate. If omitted, the app is open (no auth required).
 	// Can also be set via the AUTH_PASSWORD env var (env takes priority over config).
 	auth?: { password: string };
+}
+
+export interface ScanSchedule {
+	enabled: boolean;
+	intervalHours: number;
 }
 
 export interface Library {

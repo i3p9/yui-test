@@ -58,6 +58,7 @@ export class ScanOrchestrator {
 
 		const seenVideoIds = new Set<string>();
 		const seenUploaderIds = new Set<string>();
+		const scannedLibraryPaths = new Set<string>();
 
 		try {
 			for (const library of librariesToScan) {
@@ -72,6 +73,7 @@ export class ScanOrchestrator {
 				try {
 					// Walk the library and find video candidates
 					const candidates = await this.scanner.scanLibrary(library);
+					scannedLibraryPaths.add(library.path);
 					console.log(`Found ${candidates.length} candidates`);
 
 					// Parse metadata in parallel batches, but write to DB sequentially
@@ -151,11 +153,11 @@ export class ScanOrchestrator {
 			await this.processChannelImages();
 
 			// Mark videos as missing if they weren't seen
-			const removed = await this.db.markMissingVideos(
-				seenVideoIds,
-				options?.libraryPath
-			);
-			stats.videosRemoved = removed;
+			// Only reconcile libraries visited by this scan. Skipped or removed
+			// libraries must retain their existing availability state.
+			for (const libraryPath of scannedLibraryPaths) {
+				stats.videosRemoved += await this.db.markMissingVideos(seenVideoIds, libraryPath);
+			}
 
 			// Rebuild FTS indexes once (replaces per-video sync)
 			await this.db.rebuildFtsIndexes();

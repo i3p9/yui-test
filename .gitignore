@@ -53,3 +53,7 @@ coverage/
 temp/
 tmp/
 .claude/settings.local.json
+
+# Persisted automatic scan schedule
+*.scan-schedule.json
+*.scan-schedule.json.tmp

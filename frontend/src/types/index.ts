@@ -13,11 +13,23 @@ export interface Library {
 	skip?: boolean;
 }
 
+export interface ScanSchedule {
+	enabled: boolean;
+	intervalHours: number;
+}
+
+export interface ScanScheduleStatus extends ScanSchedule {
+	nextRunAt: string | null;
+	waitingForLibraries: boolean;
+	lastError: string | null;
+}
+
 export interface Config {
 	libraries: Library[];
 	thumbnailDir: string;
 	metadataDir: string;
 	databaseUrl: string;
+	scanSchedule: ScanSchedule;
 	scanOptions: {
 		parallelism: number;
 		followSymlinks: boolean;
