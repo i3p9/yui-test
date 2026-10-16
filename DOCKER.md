@@ -62,6 +62,12 @@ docker-compose up -d
 docker-compose logs -f
 ```
 
+Docker builds use pnpm **10.15.1**, matching both package manifests. Keep that
+version aligned across the manifests and all three Docker stages when upgrading.
+Each application's `pnpm-workspace.yaml` explicitly permits its required install
+scripts. These files are copied before dependency installation, including in the
+production stage. See [pnpm's build-script settings](https://pnpm.io/10.x/settings#onlybuiltdependencies).
+
 ### 5. Access the Application
 
 Open your browser and navigate to:

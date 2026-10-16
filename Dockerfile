@@ -6,10 +6,10 @@ FROM node:20-alpine AS frontend-builder
 WORKDIR /app/frontend
 
 # Copy frontend package files
-COPY frontend/package.json frontend/pnpm-lock.yaml ./
+COPY frontend/package.json frontend/pnpm-lock.yaml frontend/pnpm-workspace.yaml ./
 
 # Install pnpm and dependencies
-RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN corepack enable && corepack prepare pnpm@10.15.1 --activate
 RUN pnpm install --frozen-lockfile
 
 # Copy frontend source
@@ -26,11 +26,11 @@ FROM node:20-alpine AS backend-builder
 WORKDIR /app/backend
 
 # Copy backend package files
-COPY backend/package.json backend/pnpm-lock.yaml ./
+COPY backend/package.json backend/pnpm-lock.yaml backend/pnpm-workspace.yaml ./
 COPY backend/prisma ./prisma/
 
 # Install pnpm and dependencies
-RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN corepack enable && corepack prepare pnpm@10.15.1 --activate
 RUN pnpm install --frozen-lockfile
 
 # Generate Prisma Client
@@ -56,10 +56,10 @@ WORKDIR /app
 RUN apk add --no-cache ffmpeg yt-dlp python3
 
 # Install pnpm
-RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN corepack enable && corepack prepare pnpm@10.15.1 --activate
 
 # Copy backend package files
-COPY backend/package.json backend/pnpm-lock.yaml ./
+COPY backend/package.json backend/pnpm-lock.yaml backend/pnpm-workspace.yaml ./
 COPY backend/prisma ./prisma/
 
 # Install production dependencies only

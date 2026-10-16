@@ -1,0 +1,7 @@
+# Installation policy for the pinned pnpm 10 release.
+strictDepBuilds: true
+onlyBuiltDependencies:
+  - esbuild
+ignoredBuiltDependencies:
+  # This postinstall only prints a funding message.
+  - core-js

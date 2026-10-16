@@ -1,0 +1,7 @@
+# Prisma and esbuild need their installation scripts in build and runtime stages.
+strictDepBuilds: true
+onlyBuiltDependencies:
+  - '@prisma/client'
+  - '@prisma/engines'
+  - esbuild
+  - prisma
