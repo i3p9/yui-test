@@ -11,7 +11,7 @@ export function ChannelsPage() {
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 	const [filter, setFilter] = useState("");
-	const [sort, setSort] = useState<"latest" | "videos" | "name">("latest");
+	const [sort, setSort] = useState<"latest" | "videos" | "name">("videos");
 
 	const shown = useMemo(() => {
 		const q = filter.trim().toLowerCase();
@@ -50,8 +50,8 @@ export function ChannelsPage() {
 					<Input type='search' aria-label='Filter channels' placeholder='Filter channels' className='w-44 sm:w-56'
 						value={filter} onChange={(e) => setFilter(e.target.value)} />
 					<Select aria-label='Sort channels' className='w-auto' value={sort} onChange={(e) => setSort(e.target.value as typeof sort)}>
-						<option value='latest'>Latest upload</option>
 						<option value='videos'>Most videos</option>
+						<option value='latest'>Latest upload</option>
 						<option value='name'>Name</option>
 					</Select>
 				</>}
