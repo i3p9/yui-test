@@ -1,11 +1,12 @@
 # Downloads
 
-Status: implemented in the working tree, **unfinished and awaiting personal acceptance
-testing**. Start the next session with [HANDOFF.md](HANDOFF.md).
+Status: working and tested locally in Docker; not yet used on the NAS. Current state and
+next steps are in [HANDOFF.md](HANDOFF.md).
 
 YUI can download channel Videos tabs, ordinary playlists, your account's Liked Videos,
 and individual video URLs. Open **Downloads** in the navigation. The downloader is
-optional; browsing and scanning existing read-only libraries continue to work.
+optional and isolated: set `DOWNLOADS_ENABLED=false` to turn it off, and if it fails to
+start, only the Downloads page is affected. Browsing and scanning keep working.
 
 ## Setup
 
@@ -38,9 +39,10 @@ missed interval. Manual runs remain available when scheduling is off.
 
 ## Activity and recovery
 
-Only one source downloads at a time. Downloads share YUI's background reservation with
-scans, metadata fetching, and channel-image jobs. Browsing and playback remain available.
-Queued downloads wait for another background job; the worker checks again each minute.
+Only one source downloads at a time. Downloads do not block scans, metadata fetching,
+channel images, or index reset: files are written to a hidden `.yui-staging` folder that
+scans ignore, then moved into the library in one step. Cookie changes and import apply
+wait until no download is running, since running downloads use those files.
 
 The Activity list separates the transfer result from the library scan result. A run can
 show downloaded files with a failed scan. **Retry scan** repeats ingestion without another
@@ -163,5 +165,6 @@ Import body shape:
 Omit `liked` when not importing an account source. Archive-only imports can omit groups.
 Cookie text uploads are limited to 1 MiB; the import HTTP body is limited to 10 MiB.
 
-See [TEST_PLAN.md](TEST_PLAN.md) for acceptance requirements and
-[VALIDATION.md](VALIDATION.md) for checks actually performed and remaining limitations.
+[IMPLEMENTATION_GUIDE.md](IMPLEMENTATION_GUIDE.md), [TEST_PLAN.md](TEST_PLAN.md), and
+[VALIDATION.md](VALIDATION.md) are the original design-time documents and are partly
+out of date; this page and the code are the current reference.

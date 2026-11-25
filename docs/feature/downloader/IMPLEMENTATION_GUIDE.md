@@ -1,5 +1,10 @@
 # Integrated YouTube Downloader — Implementation Guide
 
+> **Historical design document** written before implementation and review. Some details
+> are out of date: downloads no longer hold the shared background-job lock, and yt-dlp is
+> unpinned and auto-updated. See [README.md](README.md) and [HANDOFF.md](HANDOFF.md) for
+> current behavior.
+
 Status: implementation present, **unfinished and awaiting the owner's personal testing**.
 See [HANDOFF.md](HANDOFF.md) for next-session steps, [README.md](README.md) for usage,
 and [VALIDATION.md](VALIDATION.md) for recorded checks and remaining acceptance work.

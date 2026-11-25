@@ -1,5 +1,10 @@
 # Downloader validation report
 
+> **Historical design document** written before implementation and review. Some details
+> are out of date: downloads no longer hold the shared background-job lock, and yt-dlp is
+> unpinned and auto-updated. See [README.md](README.md) and [HANDOFF.md](HANDOFF.md) for
+> current behavior.
+
 Status updated: 2026-10-31. **Unfinished; awaiting the owner's personal testing and acceptance.**
 The check results below were recorded by the agent in the preceding implementation session
 (report dated 2026-10-23); they were not rerun for this handoff. The owner has not tested
