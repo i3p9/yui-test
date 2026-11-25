@@ -5,6 +5,7 @@ import {
 	getMetadataFetchStatus,
 } from "../lib/api";
 import type { MetadataStats, MetadataFetchStatus } from "../types";
+import { Button, Checkbox, ErrorBanner, ProgressBar, Section, Spinner, Stat, StatusBadge } from "./ui";
 
 export default function MetadataManager() {
 	const [stats, setStats] = useState<MetadataStats | null>(null);
@@ -90,237 +91,49 @@ export default function MetadataManager() {
 		}
 	};
 
-	if (loading) {
-		return (
-			<div className='border-4 border-zinc-900 bg-zinc-950 p-6 shadow-[10px_10px_0_0_#09090b]'>
-				<div className='text-center text-zinc-500'>
-					Loading metadata stats...
-				</div>
-			</div>
-		);
-	}
-
 	const hasIncompleteMetadata =
-		stats &&
-		(stats.incompleteWithVideoId > 0 ||
-			stats.generatedThumbnailsCount > 0);
+		!!stats && (stats.incompleteWithVideoId > 0 || stats.generatedThumbnailsCount > 0);
 
 	return (
-		<div className='border-4 border-zinc-900 bg-zinc-950 p-6 shadow-[10px_10px_0_0_#09090b]'>
-			{/* Header */}
-			<div className='mb-6 flex flex-col gap-3 md:flex-row md:items-center md:justify-between'>
-				<div>
-					<p className='text-xs font-mono uppercase tracking-[0.3em] text-zinc-500'>
-						Metadata Management
-					</p>
-					<h2 className='mt-2 text-lg font-black uppercase tracking-widest text-white'>
-						Missing Metadata
-					</h2>
-				</div>
-
-				{fetching && (
-					<div className='border-2 border-cyan-600 bg-cyan-950 px-4 py-2'>
-						<span className='text-xs font-mono uppercase tracking-[0.2em] text-cyan-300'>
-							● Fetching
-						</span>
+		<Section
+			id="metadata"
+			title="Missing metadata"
+			actions={fetching && <StatusBadge tone="active">Fetching</StatusBadge>}
+		>
+			{error && <ErrorBanner className="mb-3" onRetry={loadStats}>{error}</ErrorBanner>}
+			{loading && !stats ? <Spinner className="py-6" /> : stats && (
+				<div className="space-y-3">
+					<div className="grid grid-cols-2 gap-2">
+						<Stat label="Incomplete, has ID" value={stats.incompleteWithVideoId} tone={stats.incompleteWithVideoId ? "warn" : "default"} />
+						<Stat label="Generated thumbs" value={stats.generatedThumbnailsCount} />
+						<Stat label="From filename only" value={stats.fromFilename} />
+						<Stat label="Total incomplete" value={(stats.incompleteTotal || 0) + (stats.generatedThumbnailsCount || 0)} />
 					</div>
-				)}
-			</div>
 
-			{/* Error */}
-			{error && (
-				<div className='mb-6 border-2 border-red-600 bg-red-950 p-4 shadow-[4px_4px_0_0_#09090b]'>
-					<p className='text-xs font-mono uppercase tracking-[0.2em] text-red-300'>
-						⚠ Error
-					</p>
-					<p className='mt-2 text-sm text-red-200'>{error}</p>
+					{fetching && fetchStatus && fetchStatus.metadataTotal !== undefined && (
+						<div className="space-y-1.5" aria-live="polite">
+							<div className="flex justify-between font-mono text-[11px] text-zinc-400">
+								<span>{fetchStatus.metadataFetched || 0} / {fetchStatus.metadataTotal} · {fetchStatus.metadataFailed || 0} failed · {fetchStatus.metadataThumbnailsFetched || 0} thumbs</span>
+							</div>
+							<ProgressBar label="Metadata progress" value={fetchStatus.metadataFetched || 0} max={fetchStatus.metadataTotal} />
+							{fetchStatus.currentMetadata && <p className="truncate font-mono text-[11px] text-zinc-500">{fetchStatus.currentMetadata}</p>}
+						</div>
+					)}
+
+					<div className="flex flex-wrap items-center justify-between gap-3">
+					<Checkbox
+						label={stats.canWriteToLibraries ? "Save next to each video" : "Save next to each video (libraries are read-only)"}
+						checked={saveLocation === "with_video"}
+						disabled={!stats.canWriteToLibraries}
+						onChange={(e) => setSaveLocation(e.target.checked ? "with_video" : "app_data")}
+					/>
+
+					<Button variant="primary" onClick={handleFetchMetadata} disabled={fetching || !hasIncompleteMetadata}>
+						{fetching ? "Fetching…" : hasIncompleteMetadata ? "Fetch missing metadata" : "All metadata complete"}
+					</Button>
+					</div>
 				</div>
 			)}
-
-			{/* Stats */}
-			{stats && (
-				<div className='space-y-4'>
-					{/* Stats Grid */}
-
-					<div className='grid gap-4 sm:grid-cols-4'>
-						<div className='border-2 border-zinc-800 bg-zinc-950 p-4 shadow-[4px_4px_0_0_#09090b]'>
-							<p className='text-xs font-mono uppercase tracking-[0.2em] text-zinc-500'>
-								Generated Thumbnails
-							</p>
-							<p className='mt-2 text-2xl font-black text-green-400'>
-								{stats.generatedThumbnailsCount}
-							</p>
-						</div>
-						<div className='border-2 border-zinc-800 bg-zinc-950 p-4 shadow-[4px_4px_0_0_#09090b]'>
-							<p className='text-xs font-mono uppercase tracking-[0.2em] text-zinc-500'>
-								Incomplete w/ ID
-							</p>
-							<p className='mt-2 text-2xl font-black text-cyan-400'>
-								{stats.incompleteWithVideoId}
-							</p>
-						</div>
-
-						<div className='border-2 border-zinc-800 bg-zinc-950 p-4 shadow-[4px_4px_0_0_#09090b]'>
-							<p className='text-xs font-mono uppercase tracking-[0.2em] text-zinc-500'>
-								From Filename Only
-							</p>
-							<p className='mt-2 text-2xl font-black text-amber-400'>
-								{stats.fromFilename}
-							</p>
-						</div>
-
-						<div className='border-2 border-zinc-800 bg-zinc-950 p-4 shadow-[4px_4px_0_0_#09090b]'>
-							<p className='text-xs font-mono uppercase tracking-[0.2em] text-zinc-500'>
-								Total Incomplete
-							</p>
-							<p className='mt-2 text-2xl font-black text-red-400'>
-								{(stats.incompleteTotal || 0) +
-									(stats.generatedThumbnailsCount || 0)}
-							</p>
-						</div>
-					</div>
-
-					{/* Progress Bar (when fetching) */}
-					{fetching &&
-						fetchStatus &&
-						fetchStatus.metadataTotal !== undefined && (
-							<div className='border-2 border-cyan-600 bg-zinc-950 p-4 shadow-[4px_4px_0_0_#09090b]'>
-								<div className='mb-3 flex items-center justify-between'>
-									<p className='text-xs font-mono uppercase tracking-[0.2em] text-cyan-400'>
-										Fetching Progress
-									</p>
-									<p className='text-xs font-mono text-zinc-400'>
-										{fetchStatus.metadataFetched || 0} /{" "}
-										{fetchStatus.metadataTotal}
-									</p>
-								</div>
-
-								{/* Progress Bar */}
-								<div className='h-3 border-2 border-zinc-800 bg-zinc-900'>
-									<div
-										className='h-full bg-gradient-to-r from-cyan-600 to-cyan-500 transition-all duration-300'
-										style={{
-											width: `${
-												((fetchStatus.metadataFetched || 0) /
-													fetchStatus.metadataTotal) *
-												100
-											}%`,
-										}}
-									/>
-								</div>
-
-								{/* Details */}
-								<div className='mt-3 grid grid-cols-3 gap-2 text-xs font-mono'>
-									<div>
-										<span className='text-zinc-500'>Completed:</span>{" "}
-										<span className='text-green-400'>
-											{fetchStatus.metadataFetched || 0}
-										</span>
-									</div>
-									<div>
-										<span className='text-zinc-500'>Failed:</span>{" "}
-										<span className='text-red-400'>
-											{fetchStatus.metadataFailed || 0}
-										</span>
-									</div>
-									<div>
-										<span className='text-zinc-500'>Thumbs:</span>{" "}
-										<span className='text-blue-400'>
-											{fetchStatus.metadataThumbnailsFetched || 0}
-										</span>
-									</div>
-								</div>
-
-								{/* Current Video */}
-								{fetchStatus.currentMetadata && (
-									<div className='mt-3 border-t border-zinc-800 pt-3'>
-										<p className='text-xs font-mono text-zinc-500'>
-											Current:
-										</p>
-										<p className='mt-1 truncate text-xs font-mono text-white'>
-											{fetchStatus.currentMetadata}
-										</p>
-									</div>
-								)}
-							</div>
-						)}
-
-					{/* Info Box */}
-					<div className='border-2 border-cyan-800 bg-zinc-950 p-4 shadow-[4px_4px_0_0_#09090b]'>
-						<p className='text-xs font-mono uppercase tracking-[0.2em] text-cyan-400'>
-							ℹ Info
-						</p>
-						<p className='mt-2 text-sm text-zinc-300'>
-							Videos with incomplete metadata are missing information
-							like title, uploader, upload date, or duration. Fetch
-							missing metadata from YouTube using yt-dlp.
-						</p>
-						<p className='mt-2 text-sm text-zinc-400'>
-							Metadata can be saved either in each video's folder or
-							centrally in the{" "}
-							<code className='text-cyan-400'>.metadata/</code>{" "}
-							directory. Choose your preference below.
-						</p>
-					</div>
-
-					{/* Save Metadata to Video Folder */}
-					<div>
-						<label
-							className={`flex items-center gap-3 border-2 p-3 transition-colors ${
-								stats?.canWriteToLibraries
-									? "cursor-pointer border-zinc-800 bg-zinc-900 hover:border-zinc-700"
-									: "cursor-not-allowed border-zinc-800 bg-zinc-900/50 opacity-60"
-							}`}
-						>
-							<input
-								type='checkbox'
-								checked={saveLocation === "with_video"}
-								onChange={(e) =>
-									setSaveLocation(
-										e.target.checked ? "with_video" : "app_data"
-									)
-								}
-								disabled={!stats?.canWriteToLibraries}
-								className='h-4 w-4 accent-red-500'
-							/>
-							<div>
-								<p className={`text-sm font-bold ${stats?.canWriteToLibraries ? "text-white" : "text-zinc-500"}`}>
-									Save Metadata to Video Folder {stats?.canWriteToLibraries ? "(Recommended)" : "(Read-Only)"}
-								</p>
-								<p className='text-xs font-mono text-zinc-500'>
-									{!stats?.canWriteToLibraries
-										? "Libraries are mounted read-only"
-										: saveLocation === "with_video"
-										? "Saves metadata to the respective video folder"
-										: "Saves metadata to the .metadata/ directory"}
-								</p>
-							</div>
-						</label>
-						{!stats?.canWriteToLibraries && (
-							<p className='mt-2 text-xs font-mono text-amber-500'>
-								All libraries are read-only. Metadata will be saved to app data directory.
-							</p>
-						)}
-					</div>
-
-					{/* Fetch Button */}
-					<button
-						onClick={handleFetchMetadata}
-						disabled={fetching || !hasIncompleteMetadata}
-						className={`w-full border-4 px-6 py-4 font-black uppercase tracking-[0.3em] transition-colors ${
-							fetching || !hasIncompleteMetadata
-								? "cursor-not-allowed border-zinc-800 bg-zinc-900 text-zinc-500"
-								: "border-cyan-600 bg-cyan-950 text-cyan-300 hover:border-cyan-500 hover:text-cyan-200"
-						}`}
-					>
-						{fetching
-							? "Fetching Metadata..."
-							: hasIncompleteMetadata
-							? "Fetch Missing Metadata"
-							: "All Metadata Complete"}
-					</button>
-				</div>
-			)}
-		</div>
+		</Section>
 	);
 }
