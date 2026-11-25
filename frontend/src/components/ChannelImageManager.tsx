@@ -4,17 +4,18 @@ import {
 	startChannelImageDownload,
 } from "../lib/api";
 import type { ChannelImageStatus } from "../types";
-import { Button, ErrorBanner, ProgressBar, Section, Spinner, Stat, StatusBadge } from "./ui";
+import { Button, Checkbox, ErrorBanner, ProgressBar, Section, Spinner, Stat, StatusBadge } from "./ui";
 
 export default function ChannelImageManager() {
 	const [status, setStatus] = useState<ChannelImageStatus | null>(null);
 	const [loading, setLoading] = useState(true);
 	const [error, setError] = useState<string | null>(null);
 	const [starting, setStarting] = useState(false);
+	const [includeAll, setIncludeAll] = useState(false);
 
 	useEffect(() => {
-		loadStatus();
-	}, []);
+		loadStatus(!status);
+	}, [includeAll]);
 
 	useEffect(() => {
 		if (!status?.isRunning) return;
@@ -32,7 +33,7 @@ export default function ChannelImageManager() {
 		}
 
 		try {
-			const data = await getChannelImageStatus();
+			const data = await getChannelImageStatus(includeAll);
 			setStatus(data);
 			setError(null);
 		} catch (err) {
@@ -55,7 +56,7 @@ export default function ChannelImageManager() {
 		setError(null);
 
 		try {
-			await startChannelImageDownload();
+			await startChannelImageDownload(includeAll);
 			await loadStatus(false);
 		} catch (err) {
 			setError(
@@ -78,9 +79,18 @@ export default function ChannelImageManager() {
 			{loading && !status ? <Spinner className="py-6" /> : status && (
 				<div className="space-y-3">
 					<div className="grid grid-cols-2 gap-2">
-						<Stat label="Channels (5+ videos)" value={status.eligibleChannels} hint={`${status.completeChannels} complete`} />
+						<Stat label={includeAll ? "Channels" : "Channels (5+ videos)"} value={status.eligibleChannels} hint={`${status.completeChannels} complete`} />
 						<Stat label="Missing images" value={status.missingEither} tone={status.missingEither ? "warn" : "good"}
 							hint={`${status.missingAvatar} avatars · ${status.missingBanner} banners`} />
+					</div>
+
+					<div>
+					<Checkbox
+						label="Include channels with fewer than 5 videos"
+						checked={includeAll}
+						disabled={status.isRunning}
+						onChange={(e) => setIncludeAll(e.target.checked)}
+					/>
 					</div>
 
 					{status.isRunning && (

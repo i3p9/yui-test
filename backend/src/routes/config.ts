@@ -151,11 +151,13 @@ const configRoutes: FastifyPluginAsync = async (fastify) => {
 
 	// GET /api/config/channel-images/status
 	// Returns current job state plus a DB-level summary of qualifying channels.
+	// ?all=true counts every channel instead of only those with 5+ videos.
 	fastify.get("/channel-images/status", async (request, reply) => {
 		try {
+			const all = (request.query as { all?: string }).all === "true";
 			const [state, summary] = await Promise.all([
 				Promise.resolve(channelImageState.getState()),
-				channelImageDownloader.getStatusSummary(),
+				channelImageDownloader.getStatusSummary(all ? 1 : undefined),
 			]);
 
 			return {
@@ -172,8 +174,9 @@ const configRoutes: FastifyPluginAsync = async (fastify) => {
 	});
 
 	// POST /api/config/channel-images/download
-	// Starts a fill-missing-only batch for qualifying channels.
+	// Starts a fill-missing-only batch for qualifying channels; body { all: true } includes every channel.
 	fastify.post("/channel-images/download", async (request, reply) => {
+		const all = (request.body as { all?: boolean } | undefined)?.all === true;
 		if (currentDownload || scanState.getState().isRunning) {
 			return reply.code(409).send({
 				error: "Channel image download already in progress or scan/metadata job is running",
@@ -183,7 +186,7 @@ const configRoutes: FastifyPluginAsync = async (fastify) => {
 		const release = acquireBackgroundJob("channel-images");
 		if (!release) return reply.code(409).send({ error: "Another background job is running" });
 		currentDownload = channelImageDownloader
-			.downloadMissingImages()
+			.downloadMissingImages(all ? 1 : undefined)
 			.catch((error) => {
 				channelImageState.addError(String(error));
 				channelImageState.complete();

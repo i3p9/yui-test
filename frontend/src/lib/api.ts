@@ -292,12 +292,14 @@ export const getMetadataFetchStatus = () =>
 	fetchAPI<MetadataFetchStatus>("/metadata/status");
 
 // Channel Images
-export const getChannelImageStatus = () =>
-	fetchAPI<ChannelImageStatus>("/config/channel-images/status");
+/** `all` includes every channel, not only those with 5+ videos. */
+export const getChannelImageStatus = (all = false) =>
+	fetchAPI<ChannelImageStatus>(`/config/channel-images/status${all ? "?all=true" : ""}`);
 
-export const startChannelImageDownload = () =>
+export const startChannelImageDownload = (all = false) =>
 	fetchAPI<{ message: string }>("/config/channel-images/download", {
 		method: "POST",
+		body: JSON.stringify({ all }),
 	});
 
 // Liked membership/order is independent of file location and may precede media.

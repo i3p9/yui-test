@@ -21,7 +21,9 @@ import { loadConfig } from "../lib/config.js";
 import { channelImageState } from "../lib/channel-image-state.js";
 
 
-const MIN_VIDEO_COUNT = 5;
+// Default threshold skips channels you only have a stray liked video from.
+// Passing minVideos = 1 includes every channel.
+export const MIN_VIDEO_COUNT = 5;
 
 interface ChannelImageRecord {
 	uploaderId: string;
@@ -42,13 +44,9 @@ export interface ChannelImageStatusSummary {
 export class ChannelImageDownloader {
 	private prisma = getPrismaClient();
 
-	async downloadMissingImages(): Promise<void> {
+	async downloadMissingImages(minVideos = MIN_VIDEO_COUNT): Promise<void> {
 		const channels = await this.prisma.channel.findMany({
-			where: {
-				videoCount: {
-					gte: MIN_VIDEO_COUNT,
-				},
-			},
+			where: { videoCount: { gte: minVideos } },
 			orderBy: [{ videoCount: "desc" }, { name: "asc" }],
 			select: {
 				uploaderId: true,
@@ -133,49 +131,16 @@ export class ChannelImageDownloader {
 		}
 	}
 
-	async getStatusSummary(): Promise<ChannelImageStatusSummary> {
+	async getStatusSummary(minVideos = MIN_VIDEO_COUNT): Promise<ChannelImageStatusSummary> {
+		const eligible = { videoCount: { gte: minVideos } };
+		const count = (where: object) => this.prisma.channel.count({ where: { ...eligible, ...where } });
 		const [eligibleChannels, completeChannels, missingEither, missingAvatar, missingBanner] =
 			await Promise.all([
-				this.prisma.channel.count({
-					where: {
-						videoCount: {
-							gte: MIN_VIDEO_COUNT,
-						},
-					},
-				}),
-				this.prisma.channel.count({
-					where: {
-						videoCount: {
-							gte: MIN_VIDEO_COUNT,
-						},
-						avatarPath: { not: null },
-						bannerPath: { not: null },
-					},
-				}),
-				this.prisma.channel.count({
-					where: {
-						videoCount: {
-							gte: MIN_VIDEO_COUNT,
-						},
-						OR: [{ avatarPath: null }, { bannerPath: null }],
-					},
-				}),
-				this.prisma.channel.count({
-					where: {
-						videoCount: {
-							gte: MIN_VIDEO_COUNT,
-						},
-						avatarPath: null,
-					},
-				}),
-				this.prisma.channel.count({
-					where: {
-						videoCount: {
-							gte: MIN_VIDEO_COUNT,
-						},
-						bannerPath: null,
-					},
-				}),
+				count({}),
+				count({ avatarPath: { not: null }, bannerPath: { not: null } }),
+				count({ OR: [{ avatarPath: null }, { bannerPath: null }] }),
+				count({ avatarPath: null }),
+				count({ bannerPath: null }),
 			]);
 
 		return {
