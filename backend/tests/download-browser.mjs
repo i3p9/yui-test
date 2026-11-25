@@ -28,9 +28,15 @@ try {
   const failures = [];
   page.on('pageerror', error => failures.push(error.message));
   await page.goto(setup.url + '/downloads');
-  await page.getByRole('heading', { name: 'DOWNLOADS', exact: true }).waitFor();
+  await page.getByRole('heading', { name: 'Downloads', exact: true }).waitFor();
+  // Setup areas are collapsed <details>; open one by its summary title.
+  const expand = async name => {
+    const summary = page.locator('details > summary').filter({ hasText: name });
+    await summary.waitFor();
+    if (!(await summary.evaluate(el => el.parentElement.open))) await summary.click();
+  };
   await page.getByRole('button', { name: 'Add source', exact: true }).click();
-  const form = page.locator('form').filter({ has: page.getByRole('heading', { name: 'Add source', exact: true }) });
+  const form = page.getByRole('dialog', { name: 'Add source' });
   await form.getByLabel('Name', { exact: true }).fill('Browser channel');
   await form.getByLabel('YouTube URL', { exact: true }).fill('https://www.youtube.com/@browser-test');
   await form.getByLabel('Quality', { exact: true }).selectOption('720p');
@@ -42,20 +48,24 @@ try {
   await page.getByText('Library scan: complete', { exact: true }).waitFor({ timeout: 15_000 });
   const state = await (await page.request.get(setup.url + '/api/downloads/runs')).json();
   assert.equal(state.runs[0].status, 'succeeded'); assert.equal(state.runs[0].publishedCount, 1);
-  const schedule = page.locator('form').filter({ has: page.getByRole('heading', { name: 'Automatic downloads' }) });
+  await expand('Schedule');
+  const schedule = page.locator('form').filter({ has: page.getByLabel('Interval (hours)') });
   await schedule.getByLabel('Enable download schedule').check();
   await schedule.getByLabel('Interval (hours)').fill('48');
   await schedule.getByRole('button', { name: 'Save schedule' }).click();
   await page.getByText('Download schedule saved', { exact: true }).waitFor();
   await page.reload();
+  await expand('Schedule');
   await page.getByLabel('Interval (hours)').waitFor();
   assert.equal(await page.getByLabel('Interval (hours)').inputValue(), '48');
+  await expand('Download one video');
   const oneoff = page.locator('form').filter({ has: page.getByLabel('Video URL', { exact: true }) });
   await oneoff.getByLabel('Video URL', { exact: true }).fill('https://www.youtube.com/watch?v=bbbbbbbbbbb&list=PL123');
   await oneoff.getByLabel('Video destination').selectOption(setup.library);
   await oneoff.getByRole('button', { name: 'Queue video' }).click();
   await page.getByText('Video queued', { exact: true }).waitFor();
   await page.getByText('Library scan: complete', { exact: true }).nth(1).waitFor({ timeout: 15000 });
+  await expand('Account cookies');
   await page.getByLabel('Upload Netscape cookies file', { exact: false }).setInputFiles({ name: 'test-cookies.txt', mimeType: 'text/plain',
     buffer: Buffer.from('# Netscape HTTP Cookie File\n.youtube.com\tTRUE\t/\tTRUE\t0\ttest\tprivate-browser-fixture\n') });
   await page.getByText('Cookies saved privately', { exact: true }).waitFor();
@@ -82,6 +92,7 @@ try {
   await page.getByRole('button', { name: 'Cancel', exact: true }).first().click();
   await page.getByText('cancelled', { exact: true }).waitFor({ timeout: 15000 });
   await page.request.post(setup.url + '/api/test/scenario', { data: { mode: 'success' } });
+  await expand('Import existing setup');
   await page.getByLabel('Import destination', { exact: true }).selectOption(setup.library);
   await page.getByLabel('720p source list', { exact: true }).setInputFiles({ name: 'sources.txt', mimeType: 'text/plain', buffer: Buffer.from('https://www.youtube.com/@imported-browser\n') });
   await page.getByRole('button', { name: 'Preview import' }).click();
@@ -90,6 +101,8 @@ try {
   await page.getByText('Imported 1 sources', { exact: false }).waitFor();
   await page.getByRole('button', { name: 'View log' }).first().click();
   await page.getByRole('heading', { name: 'Run log', exact: true }).waitFor();
+  await page.keyboard.press('Escape');
+  await page.getByRole('dialog').waitFor({ state: 'detached' });
   // Error recovery preserves form values.
   await oneoff.getByLabel('Video URL', { exact: true }).fill('https://www.youtube.com/watch?v=ccccccccccc');
   await page.route('**/api/downloads/videos', route => route.fulfill({ status: 503, contentType: 'application/json', body: '{"error":"Test service unavailable"}' }));
@@ -97,14 +110,14 @@ try {
   await page.getByRole('alert').filter({ hasText: 'Test service unavailable' }).waitFor();
   assert.equal(await oneoff.getByLabel('Video URL', { exact: true }).inputValue(), 'https://www.youtube.com/watch?v=ccccccccccc');
   await page.unroute('**/api/downloads/videos');
-  await page.getByRole('alert').getByRole('button', { name: 'Refresh', exact: true }).click();
+  await page.getByRole('alert').getByRole('button', { name: 'Retry', exact: true }).click();
   await page.waitForFunction(() => !document.querySelector('[role="alert"]'));
   await mkdir('test-results', { recursive: true });
   await page.screenshot({ path: 'test-results/downloads-desktop.png', fullPage: true });
   await page.setViewportSize({ width: 390, height: 844 });
   await page.screenshot({ path: 'test-results/downloads-mobile.png', fullPage: true });
   assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true, 'Mobile page overflows horizontally');
-  await page.getByRole('link', { name: 'LIKED', exact: true }).last().click();
+  await page.getByRole('link', { name: 'Liked', exact: true }).last().click();
   await page.waitForURL('**/liked');
   await page.getByText('Test video', { exact: true }).first().waitFor();
   assert.deepEqual(failures, []);

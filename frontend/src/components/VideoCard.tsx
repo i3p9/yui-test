@@ -1,118 +1,82 @@
 import { Link } from 'react-router-dom'
 import { getThumbnailUrl } from '../lib/api'
+import { formatDuration, formatFullDate, formatUploadDate } from '../utils/format'
+import { ChannelAvatar } from './ChannelCard'
+
+export interface VideoCardData {
+  videoId: string
+  title: string
+  uploader: string | null
+  uploaderId?: string | null
+  uploadDate: string | null
+  durationSeconds: number | null
+  thumbnailPath: string | null
+  hasThumbnails?: boolean | null
+  thumbnailSource?: string | null
+}
 
 interface VideoCardProps {
-  video: {
-    videoId: string
-    title: string
-    uploader: string | null
-    uploadDate: string | null
-    durationSeconds: number | null
-    thumbnailPath: string | null
-    hasThumbnails?: boolean | null
-    thumbnailSource?: string | null // 'original' | 'extracted' | null
-  }
+  video: VideoCardData
   progress?: number // 0-100 percentage
-  showThumbnailBadge?: boolean // Show badge indicating thumbnail source
+  hideChannel?: boolean // e.g. on a channel's own page
 }
 
-function formatDuration(seconds: number | null): string {
-  if (!seconds) return '0:00'
-  const hrs = Math.floor(seconds / 3600)
-  const mins = Math.floor((seconds % 3600) / 60)
-  const secs = seconds % 60
-  if (hrs > 0) {
-    return `${hrs}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
-  }
-  return `${mins}:${secs.toString().padStart(2, '0')}`
-}
-
-function formatDate(dateString: string | null): string {
-  if (!dateString) return 'Unknown'
-  try {
-    const date = new Date(dateString)
-    const now = new Date()
-    const diffMs = now.getTime() - date.getTime()
-    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24))
-
-    if (diffDays === 0) return 'Today'
-    if (diffDays === 1) return 'Yesterday'
-    if (diffDays < 7) return `${diffDays} days ago`
-    if (diffDays < 30) return `${Math.floor(diffDays / 7)} weeks ago`
-    if (diffDays < 365) return `${Math.floor(diffDays / 30)} months ago`
-    return `${Math.floor(diffDays / 365)} years ago`
-  } catch {
-    return dateString
-  }
-}
-
-export function VideoCard({ video, progress, showThumbnailBadge = false }: VideoCardProps) {
-  // Always try to get thumbnail - backend handles fallback to original if optimized doesn't exist
-  // Only show placeholder if no thumbnail at all (neither optimized nor original)
-  const thumbnailUrl = (video.hasThumbnails || video.thumbnailPath)
-    ? getThumbnailUrl(video.videoId, 'small')
-    : null
+export function VideoCard({ video, progress, hideChannel = false }: VideoCardProps) {
+  // Backend falls back to the original image when no optimized thumbnail exists.
+  const thumbnailUrl = video.hasThumbnails || video.thumbnailPath ? getThumbnailUrl(video.videoId, 'small') : null
+  const showAvatar = !hideChannel && !!video.uploaderId
 
   return (
-    <Link to={`/watch/${video.videoId}`} className="group block">
-      {/* Thumbnail */}
-      <div className="relative aspect-video bg-zinc-900 overflow-hidden border-2 border-zinc-800 group-hover:border-red-600 transition-colors">
+    <Link to={`/watch/${video.videoId}`} className="group block min-w-0">
+      <div className="relative aspect-video overflow-hidden border-2 border-zinc-800 bg-zinc-900 transition-colors group-hover:border-red-600">
         {thumbnailUrl ? (
-          <img
-            src={thumbnailUrl}
-            alt={video.title}
-            className="w-full h-full object-cover"
-            loading="lazy"
-          />
+          <img src={thumbnailUrl} alt="" loading="lazy"
+            className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]" />
         ) : (
-          <div className="w-full h-full flex items-center justify-center">
-            <svg className="w-16 h-16 text-zinc-700" fill="currentColor" viewBox="0 0 24 24">
-              <path d="M8 5v14l11-7z" />
-            </svg>
+          <div className="flex h-full w-full items-center justify-center">
+            <svg className="h-10 w-10 text-zinc-700" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path d="M8 5v14l11-7z" /></svg>
           </div>
         )}
-
-        {/* Thumbnail source badge (optional debug info) */}
-        {showThumbnailBadge && video.thumbnailSource && (
-          <div className="absolute top-2 left-2 bg-black/80 px-2 py-1 text-xs font-bold font-mono border border-zinc-700">
-            {video.thumbnailSource === 'original' ? '📷 IMG' : '🎬 VID'}
-          </div>
-        )}
-
-        {/* Duration badge */}
-        {video.durationSeconds && (
-          <div className="absolute bottom-2 right-2 bg-black px-2 py-1 text-xs font-bold font-mono border border-zinc-700">
+        {!!video.durationSeconds && (
+          <span className="absolute bottom-1.5 right-1.5 bg-black/85 px-1 py-px font-mono text-[11px] font-bold">
             {formatDuration(video.durationSeconds)}
-          </div>
+          </span>
         )}
-
-        {/* Progress bar */}
         {progress !== undefined && progress > 0 && (
-          <div className="absolute bottom-0 left-0 right-0 h-1 bg-zinc-800">
-            <div
-              className="h-full bg-red-600"
-              style={{ width: `${progress}%` }}
-            />
+          <div className="absolute inset-x-0 bottom-0 h-1 bg-zinc-700/80">
+            <div className="h-full bg-red-600" style={{ width: `${progress}%` }} />
           </div>
         )}
       </div>
 
-      {/* Info */}
-      <div className="mt-3 space-y-1">
-        <h3 className="font-bold text-sm leading-tight line-clamp-2 group-hover:text-red-500 transition-colors">
-          {video.title}
-        </h3>
-        {video.uploader && (
-          <p className="text-xs text-zinc-400 font-medium">
-            {video.uploader}
-          </p>
-        )}
-        {video.uploadDate && (
-          <p className="text-xs text-zinc-500 font-mono">
-            {formatDate(video.uploadDate)}
-          </p>
-        )}
+      <div className="mt-2 flex gap-2.5">
+        {showAvatar && <ChannelAvatar channelId={video.uploaderId!} className="mt-0.5 h-8 w-8" />}
+        <div className="min-w-0">
+          <h3 className="line-clamp-2 text-sm font-semibold leading-snug transition-colors group-hover:text-red-500" title={video.title}>
+            {video.title}
+          </h3>
+          {!hideChannel && video.uploader && <p className="mt-0.5 truncate text-xs text-zinc-400">{video.uploader}</p>}
+          {video.uploadDate && (
+            <p className="mt-0.5 text-xs text-zinc-500" title={formatFullDate(video.uploadDate)}>{formatUploadDate(video.uploadDate)}</p>
+          )}
+        </div>
       </div>
     </Link>
+  )
+}
+
+/** Placeholder with the same footprint as a VideoCard. */
+export function VideoCardSkeleton() {
+  return (
+    <div aria-hidden="true">
+      <div className="aspect-video animate-pulse bg-zinc-900" />
+      <div className="mt-2 flex gap-2.5">
+        <div className="h-8 w-8 flex-shrink-0 animate-pulse rounded-full bg-zinc-900" />
+        <div className="flex-1 space-y-1.5 pt-0.5">
+          <div className="h-3.5 w-11/12 animate-pulse bg-zinc-900" />
+          <div className="h-3 w-1/2 animate-pulse bg-zinc-900" />
+        </div>
+      </div>
+    </div>
   )
 }

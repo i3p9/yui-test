@@ -1,100 +1,105 @@
-import { useEffect, useState } from 'react'
-import { getLatestVideos } from '../lib/api'
-import { VideoGrid } from '../components/VideoGrid'
+import { useEffect, useRef, useState } from 'react'
+import { useSearchParams } from 'react-router-dom'
+import { getChannelVideos, getChannels, getContinueWatching, getLatestVideos } from '../lib/api'
+import { VideoGrid, FeedFooter } from '../components/VideoGrid'
+import { VideoCard, type VideoCardData } from '../components/VideoCard'
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
+import { Page, ErrorBanner } from '../components/ui'
+import type { Channel } from '../types'
 
-interface Video {
-  videoId: string
-  title: string
-  uploader: string | null
-  uploadDate: string | null
-  durationSeconds: number | null
-  thumbnailPath: string | null
-  hasThumbnails?: boolean | null
-  thumbnailSource?: string | null
+const heading = 'mb-3 text-sm font-bold uppercase tracking-wide'
+
+function Chip({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button type="button" onClick={onClick} aria-pressed={active}
+      className={`h-8 flex-shrink-0 whitespace-nowrap border-2 px-3 text-sm font-semibold transition-colors ${
+        active ? 'border-white bg-white text-black' : 'border-zinc-800 bg-zinc-900 text-zinc-200 hover:border-zinc-600'}`}>
+      {children}
+    </button>
+  )
 }
 
 export function HomePage() {
-  const [videos, setVideos] = useState<Video[]>([])
+  useDocumentTitle(null)
+  const [params, setParams] = useSearchParams()
+  const channelId = params.get('channel')
+  const [channels, setChannels] = useState<Channel[]>([])
+  const [resume, setResume] = useState<{ video: VideoCardData; percent: number }[]>([])
+  const [videos, setVideos] = useState<VideoCardData[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [page, setPage] = useState(1)
   const [hasMore, setHasMore] = useState(false)
+  const request = useRef(0)
 
   useEffect(() => {
-    loadVideos()
-  }, [page])
+    getChannels()
+      .then((r) => setChannels([...r.channels].sort((a, b) => (b.lastUploadDate ?? '').localeCompare(a.lastUploadDate ?? ''))))
+      .catch(() => {})
+    getContinueWatching(12).then((r) => setResume(r.items)).catch(() => {})
+  }, [])
+
+  // Switching the channel filter starts the list over.
+  useEffect(() => { setVideos([]); setPage(1) }, [channelId])
 
   const loadVideos = async () => {
+    const id = ++request.current // ignore responses from an older filter/page
     try {
       setLoading(true)
       setError(null)
-      const response = await getLatestVideos({ page, limit: 40 })
-      // Page 1 replaces the list; subsequent pages append
+      const response = channelId
+        ? await getChannelVideos(channelId, { page, limit: 40, sort: 'uploadDate' })
+        : await getLatestVideos({ page, limit: 40 })
+      if (id !== request.current) return
       setVideos((prev) => (page === 1 ? response.videos : [...prev, ...response.videos]))
       setHasMore(page < response.pagination.pages)
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load videos')
+      if (id === request.current) setError(err instanceof Error ? err.message : 'Failed to load videos')
     } finally {
-      setLoading(false)
+      if (id === request.current) setLoading(false)
     }
   }
+  useEffect(() => { loadVideos() }, [page, channelId])
 
-  const sentinelRef = useInfiniteScroll(
-    () => setPage((p) => p + 1),
-    !loading && hasMore
-  )
-
-  if (loading && videos.length === 0) {
-    return (
-      <div className="p-8">
-        <div className="flex items-center justify-center py-20">
-          <div className="text-center">
-            <div className="inline-block w-16 h-16 border-4 border-red-600 border-t-transparent rounded-full animate-spin mb-4" />
-            <p className="text-zinc-400 font-bold">LOADING...</p>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
-  if (error) {
-    return (
-      <div className="p-8">
-        <div className="bg-red-950 border-2 border-red-600 p-6">
-          <p className="text-red-400 font-bold">ERROR: {error}</p>
-        </div>
-      </div>
-    )
-  }
+  const sentinelRef = useInfiniteScroll(() => setPage((p) => p + 1), !loading && hasMore)
+  const selectChannel = (id: string | null) => setParams(id ? { channel: id } : {}, { replace: false })
+  const selected = channels.find((c) => c.uploaderId === channelId)
 
   return (
-    <div className="p-8">
-      {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-4xl font-black tracking-tight mb-2">LATEST</h1>
-        <div className="h-1 w-24 bg-red-600" />
-      </div>
-
-      {/* Video Grid */}
-      <VideoGrid videos={videos} />
-
-      {/* Sentinel — observed by IntersectionObserver to trigger next page load */}
-      <div ref={sentinelRef} />
-
-      {/* Loading spinner for subsequent pages (not the initial load) */}
-      {loading && videos.length > 0 && (
-        <div className="flex justify-center py-12">
-          <div className="inline-block w-10 h-10 border-4 border-red-600 border-t-transparent rounded-full animate-spin" />
+    <Page>
+      {channels.length > 1 && (
+        <div className="-mx-4 mb-5 flex gap-2 overflow-x-auto px-4 pb-1 md:-mx-6 md:px-6 [scrollbar-width:none]" role="toolbar" aria-label="Filter by channel">
+          <Chip active={!channelId} onClick={() => selectChannel(null)}>All</Chip>
+          {channels.map((c) => (
+            <Chip key={c.uploaderId} active={c.uploaderId === channelId} onClick={() => selectChannel(c.uploaderId)}>{c.name}</Chip>
+          ))}
         </div>
       )}
 
-      {/* End of list */}
-      {!hasMore && videos.length > 0 && (
-        <p className="text-center text-xs font-mono text-zinc-700 py-12 tracking-widest uppercase">
-          — End —
-        </p>
+      {!channelId && resume.length > 0 && (
+        <section className="mb-8" aria-labelledby="resume-title">
+          <h2 id="resume-title" className={heading}>Continue watching</h2>
+          <div className="-mx-4 flex gap-4 overflow-x-auto px-4 pb-2 md:-mx-6 md:px-6">
+            {resume.map(({ video, percent }) => (
+              <div key={video.videoId} className="w-64 flex-shrink-0 md:w-72">
+                <VideoCard video={video} progress={percent} />
+              </div>
+            ))}
+          </div>
+        </section>
       )}
-    </div>
+
+      <section aria-labelledby="latest-title">
+        <h2 id="latest-title" className={heading}>{selected ? selected.name : 'Latest uploads'}</h2>
+        {error ? (
+          <ErrorBanner onRetry={loadVideos}>{error}</ErrorBanner>
+        ) : (
+          <VideoGrid videos={videos} loading={loading} hideChannel={!!channelId} />
+        )}
+        <div ref={sentinelRef} />
+        <FeedFooter loading={loading} hasMore={hasMore} count={videos.length} />
+      </section>
+    </Page>
   )
 }

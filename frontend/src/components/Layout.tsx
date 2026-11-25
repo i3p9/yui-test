@@ -8,71 +8,49 @@ interface LayoutProps {
 }
 
 // ─── Icons ────────────────────────────────────────────────────────────────────
-// Inline SVGs kept small; shared between sidebar and bottom nav.
+// 24px outline icons in one style; the active nav item gets the filled variant.
 
-function HomeIcon({ className }: { className?: string }) {
-	return (
-		<svg className={className} fill="currentColor" viewBox="0 0 24 24">
-			<path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z" />
-		</svg>
-	);
-}
+type IconProps = { className?: string; filled?: boolean }
+const stroke = { fill: 'none', stroke: 'currentColor', strokeWidth: 1.8, strokeLinejoin: 'round' as const, strokeLinecap: 'round' as const }
 
-function ChannelsIcon({ className }: { className?: string }) {
-	return (
-		<svg className={className} fill="currentColor" viewBox="0 0 24 24">
-			<path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z" />
-		</svg>
-	);
-}
-
-function LikedIcon({ className }: { className?: string }) {
-	return (
-		<svg className={className} fill="currentColor" viewBox="0 0 24 24">
-			<path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
-		</svg>
-	);
-}
-
-function DownloadsIcon({ className }: { className?: string }) {
-	return <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-		<path strokeWidth="2" d="M12 3v12m-5-5 5 5 5-5M4 16v5h16v-5" />
+function HomeIcon({ className, filled }: IconProps) {
+	return <svg className={className} viewBox="0 0 24 24" aria-hidden="true" {...stroke} fill={filled ? 'currentColor' : 'none'}>
+		<path d="M4 10.5 12 4l8 6.5V20h-5.5v-5.5h-5V20H4z" />
 	</svg>;
 }
-
-function ConfigIcon({ className }: { className?: string }) {
-	return (
-		<svg className={className} fill="currentColor" viewBox="0 0 24 24">
-			<path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z" />
-		</svg>
-	);
+function ChannelsIcon({ className, filled }: IconProps) {
+	return <svg className={className} viewBox="0 0 24 24" aria-hidden="true" {...stroke}>
+		<rect x="3" y="6" width="18" height="14" fill={filled ? 'currentColor' : 'none'} /><path d="M7 3h10" />
+		<path d="m10 10 5 3-5 3z" fill={filled ? 'black' : 'currentColor'} stroke={filled ? 'black' : 'currentColor'} />
+	</svg>;
 }
-
+function LikedIcon({ className, filled }: IconProps) {
+	return <svg className={className} viewBox="0 0 24 24" aria-hidden="true" {...stroke} fill={filled ? 'currentColor' : 'none'}>
+		<path d="M12 20s-7.5-4.6-7.5-10A4.3 4.3 0 0 1 12 7.3 4.3 4.3 0 0 1 19.5 10c0 5.4-7.5 10-7.5 10z" />
+	</svg>;
+}
+function DownloadsIcon({ className, filled }: IconProps) {
+	return <svg className={className} viewBox="0 0 24 24" aria-hidden="true" {...stroke} strokeWidth={filled ? 2.6 : 1.8}>
+		<path d="M12 4v11m-5-5 5 5 5-5M5 20h14" />
+	</svg>;
+}
+function ConfigIcon({ className, filled }: IconProps) {
+	return <svg className={className} viewBox="0 0 24 24" aria-hidden="true" {...stroke} strokeWidth={filled ? 2.6 : 1.8}>
+		<path d="M4 7h9m4 0h3M4 17h3m4 0h9" /><circle cx="15" cy="7" r="2" fill={filled ? 'currentColor' : 'none'} /><circle cx="9" cy="17" r="2" fill={filled ? 'currentColor' : 'none'} />
+	</svg>;
+}
 function HamburgerIcon({ className }: { className?: string }) {
-	return (
-		<svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-			<path strokeLinecap="square" strokeLinejoin="miter" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
-		</svg>
-	);
+	return <svg className={className} viewBox="0 0 24 24" aria-hidden="true" {...stroke} strokeWidth={2}><path d="M4 6h16M4 12h16M4 18h16" /></svg>;
 }
 
-function GearIcon({ className }: { className?: string }) {
-	return (
-		<svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-			<path strokeLinecap="square" strokeLinejoin="miter" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-			<path strokeLinecap="square" strokeLinejoin="miter" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-		</svg>
-	);
-}
-
-// ─── Mobile bottom nav items ───────────────────────────────────────────────────
+// ─── Nav items ────────────────────────────────────────────────────────────────
 
 const NAV_ITEMS = [
-	{ to: "/",          label: "HOME",      Icon: HomeIcon,     exact: true  },
-	{ to: "/channels",  label: "CHANNELS",  Icon: ChannelsIcon, exact: false },
-	{ to: "/liked",     label: "LIKED",     Icon: LikedIcon,    exact: false },
-	{ to: "/downloads", label: "DOWNLOADS", Icon: DownloadsIcon, exact: false },
-	{ to: "/configure", label: "CONFIG",    Icon: ConfigIcon,   exact: false },
+	{ to: "/",          label: "Home",      Icon: HomeIcon,      exact: true  },
+	{ to: "/channels",  label: "Channels",  Icon: ChannelsIcon,  exact: false },
+	{ to: "/liked",     label: "Liked",     Icon: LikedIcon,     exact: false },
+	{ to: "/downloads", label: "Downloads", Icon: DownloadsIcon, exact: false },
+	{ to: "/configure", label: "Config",    Icon: ConfigIcon,    exact: false },
 ] as const;
 
 // ─── Layout ───────────────────────────────────────────────────────────────────
@@ -81,16 +59,8 @@ export function Layout({ children }: LayoutProps) {
 	const location = useLocation();
 	const isWatchPage = location.pathname.startsWith("/watch");
 
-	// Sidebar collapsed state (desktop only)
-	const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
-		const saved = localStorage.getItem("sidebarCollapsed");
-		if (saved !== null) return JSON.parse(saved);
-		return isWatchPage;
-	});
-
-	useEffect(() => {
-		localStorage.setItem("sidebarCollapsed", JSON.stringify(isSidebarCollapsed));
-	}, [isSidebarCollapsed]);
+	// Desktop rail: shown by default, hidden on the watch page; the hamburger toggles it.
+	const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(isWatchPage);
 
 	// Hide the Downloads tab when the server runs with DOWNLOADS_ENABLED=false.
 	const [downloadsEnabled, setDownloadsEnabled] = useState(true);
@@ -99,7 +69,6 @@ export function Layout({ children }: LayoutProps) {
 	}, []);
 	const navItems = NAV_ITEMS.filter((item) => item.to !== "/downloads" || downloadsEnabled);
 
-	// Auto-collapse sidebar on watch page (desktop)
 	useEffect(() => {
 		setIsSidebarCollapsed(isWatchPage);
 	}, [isWatchPage]);
@@ -111,80 +80,67 @@ export function Layout({ children }: LayoutProps) {
 		<div className="min-h-screen bg-black text-white flex flex-col">
 
 			{/* ── Header ─────────────────────────────────────────────────────── */}
-			<header className="bg-zinc-950 border-b-4 border-red-600 sticky top-0 z-50">
-				<div className="px-4 md:px-6 py-3 md:py-4 flex items-center gap-3">
-
-					{/* Hamburger — desktop only */}
+			<header className="sticky top-0 z-50 border-b-2 border-red-600 bg-zinc-950">
+				<div className="flex h-14 items-center gap-2 px-3 md:gap-4 md:px-4">
 					<button
 						onClick={() => setIsSidebarCollapsed((c: boolean) => !c)}
-						className="hidden md:flex w-10 h-10 bg-zinc-900 border-2 border-zinc-800 items-center justify-center hover:bg-zinc-800 hover:border-red-600 transition-colors flex-shrink-0"
-						aria-label="Toggle sidebar"
+						className="hidden h-10 w-10 flex-shrink-0 items-center justify-center text-zinc-300 hover:bg-zinc-900 hover:text-white md:flex"
+						aria-label={isSidebarCollapsed ? "Show navigation" : "Hide navigation"}
+						aria-expanded={!isSidebarCollapsed}
 					>
-						<HamburgerIcon className="w-5 h-5" />
+						<HamburgerIcon className="h-6 w-6" />
 					</button>
 
-					{/* Logo */}
-					<Link to="/" className="flex items-center gap-2 group flex-shrink-0">
-						<div className="w-8 h-8 md:w-10 md:h-10 bg-red-600 flex items-center justify-center font-black text-xl md:text-2xl group-hover:scale-110 transition-transform">
-							Y
-						</div>
-						<span className="text-xl md:text-2xl font-black tracking-tight">YUI</span>
+					<Link to="/" className="group flex flex-shrink-0 items-center gap-1.5" aria-label="YUI home">
+						<span className="flex h-7 w-7 items-center justify-center bg-red-600 text-lg font-black transition-transform group-hover:-rotate-6">Y</span>
+						<span className="hidden text-lg font-black tracking-tight sm:inline">YUI</span>
 					</Link>
 
-					{/* Search — full width on both, just more margin on desktop */}
-					<SearchInput />
-
-					{/* Config gear — desktop only (mobile uses bottom nav) */}
-					<Link
-						to="/configure"
-						className="hidden md:flex w-10 h-10 bg-zinc-900 border-2 border-zinc-800 items-center justify-center hover:bg-zinc-800 hover:border-zinc-700 transition-colors flex-shrink-0"
-						aria-label="Configure"
-					>
-						<GearIcon className="w-5 h-5" />
-					</Link>
+					<div className="flex min-w-0 flex-1 justify-center">
+						<SearchInput />
+					</div>
+					{/* Balances the hamburger + logo so the search box stays centred */}
+					<div className="hidden w-[5.5rem] flex-shrink-0 lg:block" />
 				</div>
 			</header>
 
 			{/* ── Body ───────────────────────────────────────────────────────── */}
 			<div className="flex flex-1 min-h-0">
 
-				{/* Sidebar — desktop only */}
-				<aside
-					className={`hidden md:block bg-zinc-950 border-r-4 border-zinc-900 flex-shrink-0 transition-all duration-300 ${
-						isSidebarCollapsed ? "w-0 border-r-0 overflow-hidden" : "w-64"
-					}`}
-				>
-					<nav className="p-4 space-y-1 w-64">
-						{navItems.map(({ to, label, Icon, exact }) => (
-							<Link
-								key={to}
-								to={to}
-								className={`block px-4 py-3 font-bold text-sm tracking-wide transition-all ${
-									isActive(to, exact)
-										? "bg-red-600 text-white"
-										: "text-zinc-400 hover:bg-zinc-900 hover:text-white"
-								}`}
-							>
-								<div className="flex items-center gap-3">
-									<Icon className="w-5 h-5 flex-shrink-0" />
+				{/* Rail — desktop only, YouTube-style icon over label */}
+				{!isSidebarCollapsed && (
+					<nav aria-label="Main" className="sticky top-14 hidden h-[calc(100vh-3.5rem)] w-[4.5rem] flex-shrink-0 flex-col gap-1 bg-black px-1 py-2 md:flex">
+						{navItems.map(({ to, label, Icon, exact }) => {
+							const active = isActive(to, exact);
+							return (
+								<Link
+									key={to}
+									to={to}
+									aria-current={active ? "page" : undefined}
+									className={`relative flex flex-col items-center gap-1 py-3.5 text-[10px] font-medium transition-colors ${
+										active ? "bg-zinc-900 text-white" : "text-zinc-400 hover:bg-zinc-900 hover:text-white"
+									}`}
+								>
+									{active && <span className="absolute inset-y-2 left-0 w-0.5 bg-red-600" />}
+									<Icon className={`h-6 w-6 ${active ? "text-red-500" : ""}`} filled={active} />
 									<span>{label}</span>
-								</div>
-							</Link>
-						))}
+								</Link>
+							);
+						})}
 					</nav>
-				</aside>
+				)}
 
 				{/* Main content — extra bottom padding on mobile for the bottom nav */}
-				<main className={`flex-1 overflow-auto ${isWatchPage ? "" : "pb-20 md:pb-0"}`}>
+				<main className={`flex-1 min-w-0 overflow-auto ${isWatchPage ? "" : "pb-20 md:pb-0"}`}>
 					{children}
 				</main>
 			</div>
 
-			{/* ── Mobile bottom nav ──────────────────────────────────────────── */}
-			{/* Hidden on desktop and on the watch page (immersive video UX) */}
+			{/* ── Mobile bottom nav (hidden on the watch page) ───────────────── */}
 			{!isWatchPage && (
 				<nav
-					className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-zinc-950 border-t-4 border-zinc-900"
+					aria-label="Main"
+					className="md:hidden fixed bottom-0 left-0 right-0 z-50 border-t-2 border-zinc-900 bg-zinc-950"
 					style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
 				>
 					<div className="flex">
@@ -194,16 +150,13 @@ export function Layout({ children }: LayoutProps) {
 								<Link
 									key={to}
 									to={to}
-									className={`flex-1 flex flex-col items-center justify-center gap-1 py-3 border-t-2 transition-colors ${
-										active
-											? "text-red-500 border-red-600"
-											: "text-zinc-500 border-transparent hover:text-zinc-300"
+									aria-current={active ? "page" : undefined}
+									className={`flex flex-1 flex-col items-center justify-center gap-0.5 py-2 text-[10px] font-medium transition-colors ${
+										active ? "text-white" : "text-zinc-500 hover:text-zinc-300"
 									}`}
 								>
-									<Icon className="w-6 h-6" />
-									<span className="text-[10px] font-black tracking-widest">
-										{label}
-									</span>
+									<Icon className={`h-6 w-6 ${active ? "text-red-500" : ""}`} filled={active} />
+									<span>{label}</span>
 								</Link>
 							);
 						})}

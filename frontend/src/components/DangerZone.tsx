@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { getDangerStats, resetDatabase } from '../lib/api'
 import type { DangerStats } from '../types'
+import { Button, Checkbox, ErrorBanner, Field, Input, Spinner, Stat } from './ui'
 
 interface DangerZoneProps {
   onReset?: () => void
@@ -70,165 +71,51 @@ export function DangerZone({ onReset }: DangerZoneProps) {
       stats.database.subtitles
     : 0
 
-  return (
-    <div className="border-4 border-zinc-800 bg-zinc-950 p-6 shadow-[10px_10px_0_0_#09090b]">
-      <div className="mb-6">
-        <p className="text-xs font-mono uppercase tracking-[0.3em] text-zinc-600">
-          DEVELOPMENT TOOLS
-        </p>
-        <h2 className="mt-2 text-lg font-black tracking-widest text-zinc-200">
-          Danger Zone
-        </h2>
-        <p className="mt-2 text-xs font-mono uppercase text-zinc-600">
-          Advanced maintenance. Reset database and clean up generated files.
-        </p>
-        <p className="mt-2 text-xs text-zinc-400">
-          Reset clears the browser index and watch progress. Download sources, schedule,
-          archive history, liked membership, and recovery data are kept. Rescan your libraries afterward.
-        </p>
-      </div>
+  const close = () => {
+    setShowConfirm(false)
+    setConfirmText('')
+    setRemoveThumbnails(false)
+    setRemoveMetadata(false)
+  }
 
-      {loading ? (
-        <div className="border-2 border-zinc-800 bg-zinc-900 p-4">
-          <p className="text-xs font-mono uppercase tracking-widest text-zinc-500">
-            Loading statistics...
-          </p>
-        </div>
-      ) : stats ? (
-        <div className="space-y-4">
-          {/* Current Stats */}
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-            <div className="border-2 border-zinc-800 bg-zinc-900 p-3">
-              <p className="text-xs font-mono uppercase text-zinc-500">Videos</p>
-              <p className="mt-1 text-xl font-black text-white">{stats.database.videos}</p>
-            </div>
-            <div className="border-2 border-zinc-800 bg-zinc-900 p-3">
-              <p className="text-xs font-mono uppercase text-zinc-500">Channels</p>
-              <p className="mt-1 text-xl font-black text-white">{stats.database.channels}</p>
-            </div>
-            <div className="border-2 border-zinc-800 bg-zinc-900 p-3">
-              <p className="text-xs font-mono uppercase text-zinc-500">Progress</p>
-              <p className="mt-1 text-xl font-black text-white">{stats.database.watchProgress}</p>
-            </div>
-            <div className="border-2 border-zinc-800 bg-zinc-900 p-3">
-              <p className="text-xs font-mono uppercase text-zinc-500">Thumbnails</p>
-              <p className="mt-1 text-xl font-black text-white">{stats.thumbnails.count}</p>
-            </div>
-            <div className="border-2 border-zinc-800 bg-zinc-900 p-3">
-              <p className="text-xs font-mono uppercase text-zinc-500">Metadata</p>
-              <p className="mt-1 text-xl font-black text-white">{stats.metadata.count}</p>
-            </div>
-            <div className="border-2 border-zinc-800 bg-zinc-900 p-3">
-              <p className="text-xs font-mono uppercase text-zinc-500">Scan Logs</p>
-              <p className="mt-1 text-xl font-black text-white">{stats.database.scanLogs}</p>
-            </div>
+  return (
+    <div className="space-y-3">
+      <p className="text-sm text-zinc-400">
+        Clears the library index and watch progress. Download sources and settings are kept; rescan afterwards.
+      </p>
+      {loading && !stats ? <Spinner className="py-6" /> : stats && (
+        <>
+          <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
+            <Stat label="Videos" value={stats.database.videos} />
+            <Stat label="Channels" value={stats.database.channels} />
+            <Stat label="Progress" value={stats.database.watchProgress} />
+            <Stat label="Thumbnails" value={stats.thumbnails.count} />
+            <Stat label="Metadata" value={stats.metadata.count} />
+            <Stat label="Scan logs" value={stats.database.scanLogs} />
           </div>
 
           {!showConfirm ? (
-            <button
-              onClick={() => setShowConfirm(true)}
-              className="w-full border-4 border-zinc-700 bg-zinc-900 px-6 py-4 font-black uppercase tracking-[0.3em] text-zinc-300 transition-colors hover:border-red-800 hover:text-red-300"
-            >
-              Open Reset Controls
-            </button>
+            <Button variant="danger" onClick={() => setShowConfirm(true)}>Reset database…</Button>
           ) : (
-            <div className="space-y-4 border-2 border-red-900 bg-red-950/30 p-4">
-              <div>
-                <p className="text-sm font-black uppercase tracking-wide text-red-400">
-                  Confirm Reset
-                </p>
-                <p className="mt-1 text-xs font-mono text-zinc-400">
-                  This will delete {totalRecords} database records.
-                </p>
+            <form className="space-y-3 border-2 border-red-900 bg-red-950/20 p-3" onSubmit={(e) => { e.preventDefault(); void handleReset() }}>
+              <p className="text-sm font-bold text-red-300">This deletes {totalRecords} database records.</p>
+              <div className="flex flex-col gap-1.5">
+                <Checkbox label={`Also remove ${stats.thumbnails.count} generated thumbnails (${stats.thumbnails.path})`} checked={removeThumbnails} onChange={(e) => setRemoveThumbnails(e.target.checked)} />
+                <Checkbox label={`Also remove ${stats.metadata.count} fetched metadata files (${stats.metadata.path})`} checked={removeMetadata} onChange={(e) => setRemoveMetadata(e.target.checked)} />
               </div>
-
-              {/* Options */}
-              <div className="space-y-3">
-                <label className="flex cursor-pointer items-center gap-3 border-2 border-zinc-800 bg-zinc-900 p-3 transition-colors hover:border-zinc-700">
-                  <input
-                    type="checkbox"
-                    checked={removeThumbnails}
-                    onChange={(e) => setRemoveThumbnails(e.target.checked)}
-                    className="h-4 w-4 accent-red-500"
-                  />
-                  <div>
-                    <p className="text-sm font-bold text-white">Remove Thumbnails</p>
-                    <p className="text-xs font-mono text-zinc-500">
-                      Delete {stats.thumbnails.count} generated thumbnails from {stats.thumbnails.path}
-                    </p>
-                  </div>
-                </label>
-
-                <label className="flex cursor-pointer items-center gap-3 border-2 border-zinc-800 bg-zinc-900 p-3 transition-colors hover:border-zinc-700">
-                  <input
-                    type="checkbox"
-                    checked={removeMetadata}
-                    onChange={(e) => setRemoveMetadata(e.target.checked)}
-                    className="h-4 w-4 accent-red-500"
-                  />
-                  <div>
-                    <p className="text-sm font-bold text-white">Remove Fetched Metadata</p>
-                    <p className="text-xs font-mono text-zinc-500">
-                      Delete {stats.metadata.count} metadata files from {stats.metadata.path}
-                    </p>
-                  </div>
-                </label>
+              <Field label="Type RESET to confirm" className="max-w-xs">
+                <Input autoFocus className="font-mono" value={confirmText} placeholder="RESET" onChange={(e) => setConfirmText(e.target.value.toUpperCase())} />
+              </Field>
+              <div className="flex gap-2">
+                <Button type="submit" variant="danger" disabled={confirmText !== 'RESET' || resetting}>{resetting ? 'Resetting…' : 'Reset database'}</Button>
+                <Button onClick={close}>Cancel</Button>
               </div>
-
-              {/* Confirmation Input */}
-              <div>
-                <label className="mb-2 block text-xs font-mono uppercase tracking-widest text-zinc-500">
-                  Type RESET to confirm
-                </label>
-                <input
-                  type="text"
-                  value={confirmText}
-                  onChange={(e) => setConfirmText(e.target.value.toUpperCase())}
-                  placeholder="RESET"
-                  className="w-full border-2 border-zinc-800 bg-zinc-900 px-4 py-3 font-mono text-sm text-white placeholder-zinc-600 focus:border-red-600 focus:outline-none"
-                />
-              </div>
-
-              {/* Action Buttons */}
-              <div className="flex gap-3">
-                <button
-                  onClick={() => {
-                    setShowConfirm(false)
-                    setConfirmText('')
-                    setRemoveThumbnails(false)
-                    setRemoveMetadata(false)
-                  }}
-                  className="flex-1 border-2 border-zinc-700 bg-zinc-800 px-4 py-3 font-bold uppercase tracking-widest text-zinc-300 transition-colors hover:border-zinc-600 hover:text-white"
-                >
-                  Close
-                </button>
-                <button
-                  onClick={handleReset}
-                  disabled={confirmText !== 'RESET' || resetting}
-                  className={`flex-1 border-2 px-4 py-3 font-bold uppercase tracking-widest transition-colors ${
-                    confirmText === 'RESET' && !resetting
-                      ? 'border-red-600 bg-red-900 text-red-200 hover:border-red-500 hover:text-red-100'
-                      : 'cursor-not-allowed border-zinc-800 bg-zinc-900 text-zinc-600'
-                  }`}
-                >
-                  {resetting ? 'Resetting...' : 'Confirm Reset'}
-                </button>
-              </div>
-            </div>
+            </form>
           )}
-        </div>
-      ) : null}
-
-      {error && (
-        <div className="mt-4 border-2 border-red-600 bg-red-950 p-4">
-          <p className="text-xs font-mono uppercase tracking-widest text-red-300">{error}</p>
-        </div>
+        </>
       )}
-      {success && (
-        <div className="mt-4 border-2 border-green-600 bg-green-950 p-4">
-          <p className="text-xs font-mono uppercase tracking-widest text-green-300">{success}</p>
-        </div>
-      )}
+      {error && <ErrorBanner>{error}</ErrorBanner>}
+      {success && <p role="status" className="text-sm text-emerald-300">{success}</p>}
     </div>
   )
 }

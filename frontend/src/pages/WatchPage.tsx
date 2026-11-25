@@ -1,5 +1,5 @@
-import { useEffect, useState, useRef } from "react";
-import { useParams, useNavigate, Link } from "react-router-dom";
+import { useEffect, useMemo, useState, useRef } from "react";
+import { useParams, Link } from "react-router-dom";
 import Plyr from "plyr-react";
 import "plyr-react/plyr.css";
 import {
@@ -10,8 +10,11 @@ import {
 	updateWatchProgress,
 	getWatchProgress,
 	getThumbnailUrl,
-	getChannelAvatarUrl,
 } from "../lib/api";
+import { ErrorBanner } from "../components/ui";
+import { useDocumentTitle } from "../hooks/useDocumentTitle";
+import { ChannelAvatar } from "../components/ChannelCard";
+import { formatDuration, formatFullDate, formatUploadDate } from "../utils/format";
 
 interface Video {
 	videoId: string;
@@ -22,21 +25,46 @@ interface Video {
 	description: string | null;
 	uploaderId: string | null;
 	thumbnailPath: string | null;
+	videoPath?: string | null;
 	hasThumbnails?: boolean | null;
 	thumbnailSource?: string | null;
 }
 
-interface RelatedVideo extends Video {}
+// Types the browser can be told up front. Anything else (e.g. .mkv) is left
+// untyped so the browser sniffs the stream instead of rejecting the source.
+const SOURCE_TYPES: Record<string, string> = {
+	mp4: "video/mp4",
+	m4v: "video/mp4",
+	webm: "video/webm",
+	mov: "video/quicktime",
+};
+
+const PLYR_OPTIONS = {
+	controls: [
+		"play-large",
+		"play",
+		"progress",
+		"current-time",
+		"duration",
+		"mute",
+		"volume",
+		"settings",
+		"fullscreen",
+	],
+	keyboard: { focused: true, global: true },
+	autoplay: true,
+};
+
+const pulse = "bg-zinc-800 animate-pulse";
 
 export function WatchPage() {
 	const { videoId } = useParams<{ videoId: string }>();
-	const navigate = useNavigate();
 	const playerRef = useRef<any>(null);
+	const resumeAt = useRef(0);
+	const lastSaved = useRef(0);
 
 	const [video, setVideo] = useState<Video | null>(null);
-	const [relatedVideos, setRelatedVideos] = useState<RelatedVideo[]>(
-		[]
-	);
+	const [relatedVideos, setRelatedVideos] = useState<Video[]>([]);
 	const [prevVideo, setPrevVideo] = useState<Video | null>(null);
 	const [nextVideo, setNextVideo] = useState<Video | null>(null);
 	const [loading, setLoading] = useState(true);
@@ -46,6 +74,7 @@ export function WatchPage() {
 
 	useEffect(() => {
 		if (videoId) {
+			setShowFullDescription(false);
 			loadVideo();
 			loadRelated();
 			loadNavigation();
@@ -58,15 +87,15 @@ export function WatchPage() {
 		try {
 			setLoading(true);
 			setError(null);
-			const data = await getVideo(videoId);
+			// Fetch saved progress first: the player is only created once `video`
+			// is set, so the position is ready when its metadata loads.
+			const [data, progressData] = await Promise.all([
+				getVideo(videoId),
+				getWatchProgress(videoId).catch(() => ({ progress: null })),
+			]);
+			const saved = progressData.progress;
+			resumeAt.current = saved && !saved.completed ? saved.positionSeconds : 0;
 			setVideo(data);
-
-			// Load watch progress
-			const progressData = await getWatchProgress(videoId);
-			if (progressData.progress && playerRef.current?.plyr) {
-				const player = playerRef.current.plyr;
-				player.currentTime = progressData.progress.positionSeconds;
-			}
 		} catch (err) {
 			setError(
 				err instanceof Error ? err.message : "Failed to load video"
@@ -111,291 +140,241 @@ export function WatchPage() {
 		}
 	};
 
+	// timeupdate fires several times a second; save at most every 5 seconds.
 	const handleTimeUpdate = () => {
-		// Save progress every 5 seconds
-		if (playerRef.current?.plyr) {
-			const player = playerRef.current.plyr;
-			if (Math.floor(player.currentTime) % 5 === 0) {
-				saveProgress();
-			}
-		}
-	};
-
-	const handlePause = () => {
+		const now = Date.now();
+		if (now - lastSaved.current < 5000) return;
+		lastSaved.current = now;
 		saveProgress();
 	};
 
-	const formatDate = (dateString: string | null): string => {
-		if (!dateString) return "Unknown date";
-		try {
-			const date = new Date(dateString);
-			return date.toLocaleDateString("en-US", {
-				year: "numeric",
-				month: "long",
-				day: "numeric",
-			});
-		} catch {
-			return dateString;
-		}
+	// Resume where the viewer left off (skipped near the very end).
+	const handleLoadedMetadata = () => {
+		const player = playerRef.current?.plyr;
+		const at = resumeAt.current;
+		resumeAt.current = 0;
+		if (player && at > 5 && at < (player.duration || Infinity) - 10) player.currentTime = at;
 	};
 
-	if (loading && !video) {
+	// plyr-react rebuilds the player whenever `source` changes identity, so it
+	// must stay the same object across re-renders (e.g. expanding the description).
+	const loadedId = video?.videoId;
+	const videoPath = video?.videoPath;
+	const source = useMemo(() => {
+		if (!loadedId) return null;
+		const type = SOURCE_TYPES[videoPath?.split(".").pop()?.toLowerCase() ?? ""];
+		return {
+			type: "video" as const,
+			sources: [{ src: getStreamUrl(loadedId), ...(type && { type }) }],
+		};
+	}, [loadedId, videoPath]);
+
+	// Plyr swaps in its own <video> element when it loads a source, so React's
+	// media props never fire. Media events don't bubble, but they do pass through
+	// ancestors in the capture phase, so listen on the box we own.
+	const handlers = useRef({ handleTimeUpdate, handleLoadedMetadata, saveProgress });
+	handlers.current = { handleTimeUpdate, handleLoadedMetadata, saveProgress };
+	const playerBox = useRef<HTMLDivElement>(null);
+	useEffect(() => {
+		const box = playerBox.current;
+		if (!box) return;
+		const listeners: [string, () => void][] = [
+			["timeupdate", () => handlers.current.handleTimeUpdate()],
+			["loadedmetadata", () => handlers.current.handleLoadedMetadata()],
+			["pause", () => handlers.current.saveProgress()],
+		];
+		listeners.forEach(([type, fn]) => box.addEventListener(type, fn, true));
+		return () => listeners.forEach(([type, fn]) => box.removeEventListener(type, fn, true));
+	}, [loading]);
+
+	useDocumentTitle(video?.title);
+
+	if (!loading && (error || !video || !videoId)) {
 		return (
-			<div className='flex h-full overflow-hidden bg-black'>
-				<div className='flex-1 overflow-y-auto'>
-					{/* Skeleton player */}
-					<div className='bg-black p-6'>
-						<div className='w-full aspect-video bg-zinc-900 animate-pulse' />
-					</div>
-					{/* Skeleton info */}
-					<div className='p-6 space-y-6'>
-						<div>
-							<div className='h-7 w-3/4 bg-zinc-800 animate-pulse rounded' />
-							<div className='h-1 w-16 bg-red-600 mt-2' />
-						</div>
-						<div className='flex items-center gap-4'>
-							<div className='w-8 h-8 rounded-full bg-zinc-800 animate-pulse' />
-							<div className='h-4 w-32 bg-zinc-800 animate-pulse rounded' />
-							<div className='h-4 w-24 bg-zinc-800 animate-pulse rounded' />
-						</div>
-						<div className='space-y-2'>
-							<div className='h-4 w-full bg-zinc-800 animate-pulse rounded' />
-							<div className='h-4 w-5/6 bg-zinc-800 animate-pulse rounded' />
-							<div className='h-4 w-2/3 bg-zinc-800 animate-pulse rounded' />
-						</div>
-					</div>
-				</div>
-				{/* Skeleton sidebar */}
-				<aside className='w-96 bg-zinc-950 border-l-4 border-zinc-900 overflow-y-auto flex-shrink-0'>
-					<div className='p-4'>
-						<div className='h-5 w-24 bg-zinc-800 animate-pulse rounded mb-4' />
-						<div className='space-y-4'>
-							{Array.from({ length: 6 }).map((_, i) => (
-								<div key={i} className='flex gap-3'>
-									<div className='w-40 aspect-video bg-zinc-800 animate-pulse flex-shrink-0' />
-									<div className='flex-1 space-y-2'>
-										<div className='h-4 w-full bg-zinc-800 animate-pulse rounded' />
-										<div className='h-4 w-3/4 bg-zinc-800 animate-pulse rounded' />
-										<div className='h-3 w-1/2 bg-zinc-800 animate-pulse rounded' />
-									</div>
-								</div>
-							))}
-						</div>
-					</div>
-				</aside>
+			<div className='p-4 md:p-6'>
+				<ErrorBanner>{error || "Video not found"}</ErrorBanner>
 			</div>
 		);
 	}
 
-	if (error || !video || !videoId) {
-		return (
-			<div className='p-8'>
-				<div className='bg-red-950 border-2 border-red-600 p-6'>
-					<p className='text-red-400 font-bold'>
-						ERROR: {error || "Video not found"}
-					</p>
-				</div>
-			</div>
-		);
-	}
 
 	return (
-		<div className='flex h-full overflow-hidden bg-black'>
-			{/* Main Content */}
-			<div className='flex-1 overflow-y-auto'>
-				{/* Video Player */}
-				<div className='bg-black p-6'>
-					<div className='w-full aspect-video bg-zinc-900'>
-						<Plyr
-							ref={playerRef}
-							source={{
-								type: "video",
-								sources: [
-									{
-										src: getStreamUrl(videoId),
-										type: "video/mp4",
-									},
-								],
-							}}
-							options={{
-								controls: [
-									"play-large",
-									"play",
-									"progress",
-									"current-time",
-									"duration",
-									"mute",
-									"volume",
-									"settings",
-									"fullscreen",
-								],
-								keyboard: { focused: true, global: true },
-								autoplay: true,
-							}}
-							onTimeUpdate={handleTimeUpdate}
-							onPause={handlePause}
-						/>
-					</div>
-				</div>
-
-				{/* Video Info */}
-				<div className='p-6 space-y-6'>
-					{/* Title */}
-					<div>
-						<h1 className='text-2xl font-black mb-2 text-white'>
-							{video.title}
-						</h1>
-						<div className='h-1 w-16 bg-red-600' />
-					</div>
-
-					{/* Meta Info */}
-					<div className='flex items-center gap-4 text-sm'>
-						{video.uploaderId && (
-							<img
-								src={getChannelAvatarUrl(video.uploaderId)}
-								alt={video.uploader || "Channel Thumbnail"}
-								className='w-8 h-8 rounded-full'
+		<div className='h-full overflow-y-auto lg:flex lg:overflow-hidden bg-black'>
+			{/* Main column */}
+			<div className='lg:flex-1 lg:min-w-0 lg:overflow-y-auto'>
+				{/* Player: box is sized before the video is known, so no jump */}
+				<div className='watch-column md:px-6 md:pt-4 md:box-content'>
+					<div ref={playerBox} className='watch-player bg-zinc-950'>
+						{video && source ? (
+							<Plyr
+								ref={playerRef}
+								source={source}
+								options={PLYR_OPTIONS}
 							/>
-						)}
-
-						{video.uploader && (
-							<Link
-								to={
-									video.uploaderId
-										? `/channels/${video.uploaderId}`
-										: "#"
-								}
-								className='font-bold text-white hover:text-red-500 transition-colors'
-							>
-								{video.uploader}
-							</Link>
-						)}
-						<span className='text-zinc-400 font-mono'>
-							{formatDate(video.uploadDate)}
-						</span>
-					</div>
-
-					{/* Navigation Buttons */}
-					<div className='flex gap-4'>
-						{prevVideo && (
-							<button
-								onClick={() =>
-									navigate(`/watch/${prevVideo.videoId}`)
-								}
-								className='flex-1 bg-zinc-900 border-2 border-zinc-800 hover:border-red-600 p-4 text-left transition-colors'
-							>
-								<div className='text-xs text-zinc-500 font-bold mb-1'>
-									PREVIOUS
-								</div>
-								<div className='text-sm font-bold line-clamp-2 text-white'>
-									{prevVideo.title}
-								</div>
-							</button>
-						)}
-						{nextVideo && (
-							<button
-								onClick={() =>
-									navigate(`/watch/${nextVideo.videoId}`)
-								}
-								className='flex-1 bg-zinc-900 border-2 border-zinc-800 hover:border-red-600 p-4 text-left transition-colors'
-							>
-								<div className='text-xs text-zinc-500 font-bold mb-1'>
-									NEXT
-								</div>
-								<div className='text-sm font-bold line-clamp-2 text-white'>
-									{nextVideo.title}
-								</div>
-							</button>
+						) : (
+							<div className={`w-full h-full ${pulse}`} />
 						)}
 					</div>
 
-					{/* Description */}
-					{video.description && (
-						<div className='bg-zinc-900 border-2 border-zinc-800 p-4'>
-							<div
-								className={`text-sm text-zinc-300 whitespace-pre-wrap ${
-									!showFullDescription ? "line-clamp-3" : ""
-								}`}
-							>
-								{video.description}
-							</div>
-							{video.description.length > 200 && (
-								<button
-									onClick={() =>
-										setShowFullDescription(!showFullDescription)
-									}
-									className='text-xs font-bold text-red-500 mt-2 hover:text-red-400'
+					{/* Info */}
+					<div className='px-4 md:px-0 pt-3 pb-6'>
+						{video ? (
+							<>
+								<h1 className='text-lg md:text-xl font-bold leading-snug text-white line-clamp-2'>
+									{video.title}
+								</h1>
+
+								<div className='mt-2 flex items-center gap-x-3 gap-y-1 flex-wrap text-sm'>
+									{video.uploader && (
+										<Link
+											to={
+												video.uploaderId
+													? `/channels/${video.uploaderId}`
+													: "#"
+											}
+											className='flex items-center gap-2 font-semibold text-white hover:text-red-500 transition-colors'
+										>
+											{video.uploaderId && (
+												<ChannelAvatar channelId={video.uploaderId} className='h-8 w-8' />
+											)}
+											{video.uploader}
+										</Link>
+									)}
+									{video.uploadDate && (
+										<span className='text-xs text-zinc-400' title={formatFullDate(video.uploadDate)}>
+											{formatUploadDate(video.uploadDate)}
+										</span>
+									)}
+								</div>
+							</>
+						) : (
+							<>
+								<div className={`h-6 w-3/4 ${pulse}`} />
+								<div className='mt-3 flex items-center gap-3'>
+									<div className={`w-7 h-7 rounded-full ${pulse}`} />
+									<div className={`h-4 w-32 ${pulse}`} />
+									<div className={`h-3 w-20 ${pulse}`} />
+								</div>
+							</>
+						)}
+
+						{/* Description */}
+						{video?.description && (
+							<div className='mt-4 bg-zinc-950 border-2 border-zinc-800 px-4 py-3'>
+								<div
+									className={`text-sm leading-relaxed text-zinc-300 whitespace-pre-wrap break-words ${
+										!showFullDescription ? "line-clamp-3" : ""
+									}`}
 								>
-									{showFullDescription ? "SHOW LESS" : "SHOW MORE"}
-								</button>
-							)}
-						</div>
-					)}
+									{video.description}
+								</div>
+								{video.description.length > 200 && (
+									<button
+										onClick={() =>
+											setShowFullDescription(!showFullDescription)
+										}
+										className='mt-2 font-mono text-xs font-bold text-red-500 hover:text-red-400'
+									>
+										{showFullDescription ? "SHOW LESS" : "SHOW MORE"}
+									</button>
+								)}
+							</div>
+						)}
+
+						{/* Prev / next */}
+						{(prevVideo || nextVideo) && (
+							<div className='mt-4 grid grid-cols-2 gap-2'>
+								{[
+									{ v: prevVideo, label: "← PREVIOUS", align: "" },
+									{ v: nextVideo, label: "NEXT →", align: "text-right col-start-2" },
+								].map(
+									({ v, label, align }) =>
+										v && (
+											<Link
+												key={label}
+												to={`/watch/${v.videoId}`}
+												className={`${align} bg-zinc-950 border-2 border-zinc-800 hover:border-red-600 px-3 py-2 transition-colors min-w-0`}
+											>
+												<div className='font-mono text-[11px] text-zinc-500'>
+													{label}
+												</div>
+												<div className='text-sm font-semibold text-white truncate'>
+													{v.title}
+												</div>
+											</Link>
+										)
+								)}
+							</div>
+						)}
+					</div>
 				</div>
 			</div>
 
-			{/* Related Videos Sidebar */}
-			<aside className='w-96 bg-zinc-950 border-l-4 border-zinc-900 overflow-y-auto flex-shrink-0'>
+			{/* Related: below the info on narrow screens, sidebar on lg+ */}
+			<aside className='lg:w-96 lg:flex-shrink-0 lg:overflow-y-auto bg-zinc-950 border-t-4 lg:border-t-0 lg:border-l-4 border-zinc-900'>
 				<div className='p-4'>
-					<h2 className='text-lg font-black mb-4 text-white'>
+					<h2 className='font-mono text-xs font-bold tracking-widest text-zinc-400 mb-3'>
 						RELATED
 					</h2>
-					<div className='space-y-4'>
-						{relatedVideos.map((relatedVideo) => (
-							<Link
-								key={relatedVideo.videoId}
-								to={`/watch/${relatedVideo.videoId}`}
-								className='flex gap-3 group'
-							>
-								{/* Thumbnail */}
-								<div className='w-40 aspect-video bg-zinc-900 border-2 border-zinc-800 group-hover:border-red-600 transition-colors flex-shrink-0 overflow-hidden'>
-									{relatedVideo.hasThumbnails ||
-									relatedVideo.thumbnailPath ? (
-										<img
-											src={getThumbnailUrl(
-												relatedVideo.videoId,
-												"small"
-											)}
-											alt={relatedVideo.title}
-											className='w-full h-full object-cover'
-										/>
-									) : (
-										<div className='w-full h-full flex items-center justify-center'>
-											<svg
-												className='w-8 h-8 text-zinc-700'
-												fill='currentColor'
-												viewBox='0 0 24 24'
-											>
-												<path d='M8 5v14l11-7z' />
-											</svg>
+					<div className='space-y-3'>
+						{relatedVideos.length === 0 && loading
+							? Array.from({ length: 6 }).map((_, i) => (
+									<div key={i} className='flex gap-3'>
+										<div className={`w-40 aspect-video flex-shrink-0 ${pulse}`} />
+										<div className='flex-1 space-y-2'>
+											<div className={`h-4 w-full ${pulse}`} />
+											<div className={`h-3 w-1/2 ${pulse}`} />
 										</div>
-									)}
-								</div>
-
-								{/* Info */}
-								<div className='flex-1 min-w-0'>
-									<h3 className='text-sm font-bold line-clamp-2 mb-1 text-white group-hover:text-red-500 transition-colors'>
-										{relatedVideo.title}
-									</h3>
-									<div className='flex items-center gap-2'>
-										{relatedVideo.uploaderId && (
-											<img
-												src={getChannelAvatarUrl(relatedVideo.uploaderId)}
-												alt={
-													relatedVideo.uploader || "Channel Thumbnail"
-												}
-												className='w-4 h-4 rounded-full'
-											/>
-										)}
-										{relatedVideo.uploader && (
-											<p className='text-xs text-zinc-400 font-medium'>
-												{relatedVideo.uploader}
-											</p>
-										)}
 									</div>
-								</div>
-							</Link>
-						))}
+							  ))
+							: relatedVideos.map((rv) => (
+									<Link
+										key={rv.videoId}
+										to={`/watch/${rv.videoId}`}
+										className='flex gap-3 group'
+									>
+										<div className='relative w-40 aspect-video bg-zinc-900 border-2 border-zinc-800 group-hover:border-red-600 transition-colors flex-shrink-0 overflow-hidden'>
+											{rv.hasThumbnails || rv.thumbnailPath ? (
+												<img
+													src={getThumbnailUrl(rv.videoId, "small")}
+													alt=''
+													loading='lazy'
+													className='w-full h-full object-cover'
+												/>
+											) : (
+												<div className='w-full h-full flex items-center justify-center'>
+													<svg
+														className='w-8 h-8 text-zinc-700'
+														fill='currentColor'
+														viewBox='0 0 24 24'
+													>
+														<path d='M8 5v14l11-7z' />
+													</svg>
+												</div>
+											)}
+											{!!rv.durationSeconds && (
+												<span className='absolute bottom-1 right-1 bg-black/85 px-1 font-mono text-[10px] font-bold'>
+													{formatDuration(rv.durationSeconds)}
+												</span>
+											)}
+										</div>
+										<div className='flex-1 min-w-0'>
+											<h3 className='text-sm font-semibold leading-snug line-clamp-2 text-white group-hover:text-red-500 transition-colors'>
+												{rv.title}
+											</h3>
+											{rv.uploader && (
+												<p className='mt-1 text-xs text-zinc-400 truncate'>
+													{rv.uploader}
+												</p>
+											)}
+											{rv.uploadDate && (
+												<p className='text-xs text-zinc-500' title={formatFullDate(rv.uploadDate)}>
+													{formatUploadDate(rv.uploadDate)}
+												</p>
+											)}
+										</div>
+									</Link>
+							  ))}
 					</div>
 				</div>
 			</aside>

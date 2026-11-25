@@ -1,26 +1,19 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { getConfig, updateConfig } from '../lib/api'
 import type { Config, Library } from '../types'
+import { mediaTypeHumanReadable } from '../utils/utils'
+import { Button, Checkbox, Drawer, EmptyState, ErrorBanner, Field, Input, Section, Select, Spinner, StatusBadge } from './ui'
+
+const emptyLibrary: Library = { path: '', name: '', mediaType: 'channel_archive', skip: false }
 
 export function LibraryManager() {
   const [config, setConfig] = useState<Config | null>(null)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
-  const [editingIndex, setEditingIndex] = useState<number | null>(null)
-  const [showAddForm, setShowAddForm] = useState(false)
-
-  // Form state
-  const [formData, setFormData] = useState<Library>({
-    path: '',
-    name: '',
-    mediaType: 'channel_archive',
-    skip: false,
-  })
-
-  useEffect(() => {
-    loadConfig()
-  }, [])
+  // null = closed, -1 = adding, otherwise the index being edited
+  const [editing, setEditing] = useState<number | null>(null)
+  const [formData, setFormData] = useState<Library>(emptyLibrary)
 
   const loadConfig = () => {
     setLoading(true)
@@ -29,342 +22,107 @@ export function LibraryManager() {
       .catch((err) => setError(err.message))
       .finally(() => setLoading(false))
   }
+  useEffect(loadConfig, [])
 
-  const handleAdd = async () => {
-    if (!config) return
-    if (!formData.path || !formData.name) {
-      setError('Path and name are required')
-      return
-    }
-
-    const updatedConfig = {
-      ...config,
-      libraries: [...config.libraries, formData],
-    }
-
-    // Auto-save immediately
+  // Every change saves immediately.
+  const save = async (libraries: Library[]) => {
+    if (!config) return false
     setSaving(true)
     setError(null)
     try {
-      await updateConfig(updatedConfig)
-      setFormData({
-        path: '',
-        name: '',
-        mediaType: 'channel_archive',
-        skip: false,
-      })
-      setShowAddForm(false)
+      await updateConfig({ ...config, libraries })
       loadConfig()
+      return true
     } catch (err: any) {
       setError(err.message)
+      return false
     } finally {
       setSaving(false)
     }
   }
 
-  const handleEdit = async (index: number) => {
+  const close = useCallback(() => setEditing(null), [])
+  const open = (index: number) => {
+    setFormData(index === -1 ? emptyLibrary : config!.libraries[index])
+    setEditing(index)
+  }
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!config || editing === null) return
+    const libraries = editing === -1
+      ? [...config.libraries, formData]
+      : config.libraries.map((lib, i) => (i === editing ? formData : lib))
+    if (await save(libraries)) setEditing(null)
+  }
+
+  const remove = (index: number) => {
+    if (!config || !confirm(`Remove library "${config.libraries[index].name}"? Files on disk are not touched.`)) return
+    void save(config.libraries.filter((_, i) => i !== index))
+  }
+
+  const toggleSkip = (index: number) => {
     if (!config) return
-    const updatedLibraries = [...config.libraries]
-    updatedLibraries[index] = formData
-    const updatedConfig = {
-      ...config,
-      libraries: updatedLibraries,
-    }
-
-    // Auto-save immediately
-    setSaving(true)
-    setError(null)
-    try {
-      await updateConfig(updatedConfig)
-      setEditingIndex(null)
-      setFormData({
-        path: '',
-        name: '',
-        mediaType: 'channel_archive',
-        skip: false,
-      })
-      loadConfig()
-    } catch (err: any) {
-      setError(err.message)
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  const handleDelete = async (index: number) => {
-    if (!config) return
-    if (!confirm('Are you sure you want to delete this library?')) {
-      return
-    }
-
-    const updatedLibraries = config.libraries.filter((_, i) => i !== index)
-    const updatedConfig = {
-      ...config,
-      libraries: updatedLibraries,
-    }
-
-    // Auto-save immediately
-    setSaving(true)
-    setError(null)
-    try {
-      await updateConfig(updatedConfig)
-      loadConfig()
-    } catch (err: any) {
-      setError(err.message)
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  const handleToggleSkip = async (index: number) => {
-    if (!config) return
-    const updatedLibraries = [...config.libraries]
-    updatedLibraries[index] = {
-      ...updatedLibraries[index],
-      skip: !updatedLibraries[index].skip,
-    }
-    const updatedConfig = {
-      ...config,
-      libraries: updatedLibraries,
-    }
-    setConfig(updatedConfig)
-
-    // Auto-save immediately
-    setSaving(true)
-    try {
-      await updateConfig(updatedConfig)
-      loadConfig()
-    } catch (err: any) {
-      setError(err.message)
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  const startEdit = (index: number) => {
-    if (!config) return
-    setFormData(config.libraries[index])
-    setEditingIndex(index)
-    setShowAddForm(false)
-  }
-
-  const startAdd = () => {
-    setFormData({
-      path: '',
-      name: '',
-      mediaType: 'channel_archive',
-      skip: false,
-    })
-    setShowAddForm(true)
-    setEditingIndex(null)
-  }
-
-  const cancelEdit = () => {
-    setEditingIndex(null)
-    setShowAddForm(false)
-    setFormData({
-      path: '',
-      name: '',
-      mediaType: 'channel_archive',
-      skip: false,
-    })
-  }
-
-  if (loading) {
-    return (
-      <div className="border-4 border-zinc-900 bg-zinc-950 p-5 shadow-[8px_8px_0_0_#09090b]">
-        <p className="text-xs font-mono uppercase tracking-[0.25em] text-zinc-500">Library Control</p>
-        <h2 className="mt-1 text-base font-black uppercase tracking-widest text-white">Library Management</h2>
-        <p className="mt-4 text-xs font-mono uppercase tracking-widest text-zinc-500">Loading...</p>
-      </div>
-    )
-  }
-
-  if (!config) {
-    return (
-      <div className="border-4 border-zinc-900 bg-zinc-950 p-5 shadow-[8px_8px_0_0_#09090b]">
-        <p className="text-xs font-mono uppercase tracking-[0.25em] text-zinc-500">Library Control</p>
-        <h2 className="mt-1 text-base font-black uppercase tracking-widest text-white">Library Management</h2>
-        <p className="mt-4 text-xs font-mono uppercase tracking-widest text-red-400">
-          Error: {error || 'Failed to load config'}
-        </p>
-      </div>
-    )
+    void save(config.libraries.map((lib, i) => (i === index ? { ...lib, skip: !lib.skip } : lib)))
   }
 
   return (
-    <div className="border-4 border-zinc-900 bg-zinc-950 p-5 shadow-[8px_8px_0_0_#09090b]">
-      <div className="mb-4 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-        <div>
-          <p className="text-xs font-mono uppercase tracking-[0.25em] text-zinc-500">Library Control</p>
-          <h2 className="mt-1 text-base font-black uppercase tracking-widest text-white">Library Management</h2>
-        </div>
-        <div className="flex items-center gap-3">
-          {saving && (
-            <div className="flex items-center gap-2 border-2 border-blue-600 bg-blue-950 px-3 py-1 text-xs font-black uppercase tracking-[0.25em] text-blue-300">
-              <div className="h-3 w-3 animate-spin border-2 border-blue-400 border-t-transparent" />
-              Saving
-            </div>
-          )}
-          <button
-            onClick={startAdd}
-            disabled={showAddForm || editingIndex !== null}
-            className="border-2 border-green-600 bg-green-950 px-3 py-2 text-xs font-black uppercase tracking-[0.25em] text-green-300 transition-colors hover:border-green-500 hover:text-green-200 disabled:opacity-50"
-          >
-            + Add
-          </button>
-        </div>
-      </div>
-
-      {error && (
-        <div className="mb-4 border-2 border-red-600 bg-red-950 p-3">
-          <p className="text-xs font-mono uppercase tracking-[0.25em] text-red-300">{error}</p>
-        </div>
-      )}
-
-      {/* Add/Edit Form */}
-      {(showAddForm || editingIndex !== null) && (
-        <div className={`mb-4 border-2 p-4 shadow-[4px_4px_0_0_#09090b] ${
-          showAddForm ? 'border-green-600 bg-green-950/10' : 'border-blue-600 bg-blue-950/10'
-        }`}>
-          <div className="mb-3 flex items-center justify-between">
-            <h3 className="text-sm font-black uppercase tracking-widest text-white">
-              {showAddForm ? 'Add New Library' : 'Edit Library'}
-            </h3>
-            <span className={`inline-flex items-center border px-2 py-1 text-[10px] font-black uppercase tracking-[0.1em] ${
-              showAddForm ? 'border-green-600 bg-green-950 text-green-300' : 'border-blue-600 bg-blue-950 text-blue-300'
-            }`}>
-              {showAddForm ? 'New' : 'Editing'}
-            </span>
-          </div>
-          <div className="grid gap-3 md:grid-cols-3">
-            <input
-              type="text"
-              value={formData.name}
-              onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-              placeholder="Library Name"
-              className="border-2 border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-white outline-none transition-all focus:border-green-500 focus:bg-zinc-950"
-            />
-            <select
-              value={formData.mediaType}
-              onChange={(e) => setFormData({ ...formData, mediaType: e.target.value })}
-              className="border-2 border-zinc-800 bg-zinc-900 px-3 py-2 text-sm text-white outline-none transition-all focus:border-green-500 focus:bg-zinc-950"
-            >
-              <option value="channel_archive">Channel Archive</option>
-              <option value="liked_videos">Liked Videos</option>
-            </select>
-            <input
-              type="text"
-              value={formData.path}
-              onChange={(e) => setFormData({ ...formData, path: e.target.value })}
-              placeholder="/path/to/library"
-              className="border-2 border-zinc-800 bg-zinc-900 px-3 py-2 text-sm font-mono text-white outline-none transition-all focus:border-green-500 focus:bg-zinc-950"
-            />
-          </div>
-          <div className="mt-3 flex items-center justify-between">
-            <label className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={formData.skip || false}
-                onChange={(e) => setFormData({ ...formData, skip: e.target.checked })}
-                className="h-4 w-4 border-2 border-zinc-700 bg-zinc-900 accent-green-500"
-              />
-              <span className="text-xs font-mono uppercase tracking-[0.15em] text-zinc-400">Skip during scans</span>
-            </label>
-            <div className="flex gap-2">
-              <button
-                onClick={showAddForm ? handleAdd : () => handleEdit(editingIndex!)}
-                className={`border-2 px-4 py-2 text-xs font-black uppercase tracking-[0.25em] transition-colors ${
-                  showAddForm 
-                    ? 'border-green-600 bg-green-950 text-green-200 hover:border-green-500' 
-                    : 'border-blue-600 bg-blue-950 text-blue-200 hover:border-blue-500'
-                }`}
-              >
-                {showAddForm ? 'Add' : 'Save'}
-              </button>
-              <button
-                onClick={cancelEdit}
-                className="border-2 border-zinc-800 bg-zinc-900 px-4 py-2 text-xs font-black uppercase tracking-[0.25em] text-zinc-300 transition-colors hover:border-zinc-600"
-              >
-                Cancel
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Libraries Table */}
-      {config.libraries.length > 0 ? (
-        <div className="border-2 border-zinc-800 bg-zinc-900 shadow-[4px_4px_0_0_#09090b]">
-          {/* Header */}
-          <div className="border-b-2 border-zinc-800 px-3 py-2 text-xs font-mono uppercase tracking-[0.15em] text-zinc-400">
-            <div className="grid grid-cols-5 gap-4 lg:grid-cols-6">
-              <div>Name</div>
-              <div>Type</div>
-              <div className="col-span-2">Path</div>
-              <div>Status</div>
-              <div className="hidden lg:block">Actions</div>
-            </div>
-          </div>
-          
-          {/* Library rows */}
+    <Section
+      id="libraries"
+      title="Libraries"
+      actions={<>
+        {saving && <StatusBadge tone="active">Saving</StatusBadge>}
+        <Button size="sm" variant="primary" onClick={() => open(-1)} disabled={!config}>Add library</Button>
+      </>}
+    >
+      {error && <ErrorBanner className="mb-3" onRetry={loadConfig}>{error}</ErrorBanner>}
+      {loading && !config ? (
+        <Spinner label="Loading" className="py-6" />
+      ) : !config?.libraries.length ? (
+        <EmptyState title="No libraries yet">Add the folder that holds your downloaded channels or liked videos.</EmptyState>
+      ) : (
+        <ul className="-my-2 divide-y divide-zinc-900">
           {config.libraries.map((lib, index) => (
-            <div
-              key={index}
-              className={`px-3 py-3 text-xs font-mono ${
-                index !== config.libraries.length - 1 ? 'border-b border-zinc-800' : ''
-              } ${lib.skip ? 'bg-zinc-900/60 opacity-60' : ''}`}
-            >
-              <div className="grid grid-cols-5 gap-4 lg:grid-cols-6 items-center">
-                <div className="font-black text-white uppercase tracking-[0.1em] truncate">
-                  {lib.name}
+            <li key={`${lib.path}-${index}`} className={`flex flex-wrap items-center gap-x-3 gap-y-2 py-2 ${lib.skip ? 'opacity-60' : ''}`}>
+              <div className="min-w-0 basis-full sm:basis-0 sm:flex-1">
+                <div className="flex items-center gap-2">
+                  <h3 className="truncate text-sm font-bold">{lib.name}</h3>
+                  <span className="whitespace-nowrap font-mono text-[11px] uppercase text-zinc-500">{mediaTypeHumanReadable(lib.mediaType)}</span>
                 </div>
-                <div className="text-zinc-300 uppercase tracking-[0.1em] text-[11px]">
-                  {lib.mediaType.replace('_', ' ').substring(0, 8)}
-                </div>
-                <div className="col-span-2 text-zinc-400 text-[11px] normal-case tracking-normal truncate">
-                  {lib.path}
-                </div>
-                <div>
-                  <button
-                    onClick={() => handleToggleSkip(index)}
-                    disabled={saving}
-                    className={`inline-flex items-center border px-2 py-1 text-[10px] font-black uppercase tracking-[0.1em] transition-colors disabled:opacity-50 ${
-                      lib.skip
-                        ? 'border-red-600 bg-red-950 text-red-300 hover:border-red-500'
-                        : 'border-green-600 bg-green-950 text-green-300 hover:border-green-500'
-                    }`}
-                  >
-                    {lib.skip ? 'Disabled' : 'Active'}
-                  </button>
-                </div>
-                <div className="hidden lg:flex gap-1">
-                  <button
-                    onClick={() => startEdit(index)}
-                    disabled={saving || showAddForm || editingIndex !== null}
-                    className="border border-zinc-700 bg-zinc-800 px-2 py-1 text-[10px] font-black uppercase tracking-[0.1em] text-zinc-300 hover:border-zinc-500 hover:text-white disabled:opacity-50"
-                  >
-                    Edit
-                  </button>
-                  <button
-                    onClick={() => handleDelete(index)}
-                    disabled={saving}
-                    className="border border-zinc-700 bg-zinc-800 px-2 py-1 text-[10px] font-black uppercase tracking-[0.1em] text-red-300 hover:border-red-600 hover:text-red-200 disabled:opacity-50"
-                  >
-                    Del
-                  </button>
-                </div>
+                <p className="truncate font-mono text-[11px] text-zinc-400" title={lib.path}>{lib.path}</p>
               </div>
-            </div>
+              <StatusBadge tone={lib.skip ? 'neutral' : 'success'}>{lib.skip ? 'Skipped' : 'Active'}</StatusBadge>
+              <div className="flex gap-1.5">
+                <Button size="sm" onClick={() => open(index)} disabled={saving}>Edit</Button>
+                <Button size="sm" onClick={() => toggleSkip(index)} disabled={saving}>{lib.skip ? 'Include' : 'Skip'}</Button>
+                <Button size="sm" variant="danger" onClick={() => remove(index)} disabled={saving}>Remove</Button>
+              </div>
+            </li>
           ))}
-        </div>
-      ) : !showAddForm ? (
-        <div className="border-2 border-dashed border-zinc-800 bg-zinc-900 py-6 text-center">
-          <p className="text-xs font-mono uppercase tracking-[0.25em] text-zinc-500">
-            No libraries configured
-          </p>
-        </div>
-      ) : null}
-    </div>
+        </ul>
+      )}
+
+      {editing !== null && (
+        <Drawer title={editing === -1 ? 'Add library' : 'Edit library'} onClose={close}>
+          <form className="space-y-3" onSubmit={submit}>
+            <Field label="Name"><Input autoFocus required value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} placeholder="Channels" /></Field>
+            <Field label="Type">
+              <Select value={formData.mediaType} onChange={(e) => setFormData({ ...formData, mediaType: e.target.value })}>
+                <option value="channel_archive">Channel Archive</option>
+                <option value="liked_videos">Liked Videos</option>
+              </Select>
+            </Field>
+            <Field label="Path" hint="Path inside the server or container.">
+              <Input required className="font-mono" value={formData.path} onChange={(e) => setFormData({ ...formData, path: e.target.value })} placeholder="/media/channels" />
+            </Field>
+            <Checkbox label="Skip during scans" checked={!!formData.skip} onChange={(e) => setFormData({ ...formData, skip: e.target.checked })} />
+            <div className="flex gap-2 pt-1">
+              <Button type="submit" variant="primary" disabled={saving}>{editing === -1 ? 'Add library' : 'Save'}</Button>
+              <Button onClick={close}>Cancel</Button>
+            </div>
+          </form>
+        </Drawer>
+      )}
+    </Section>
   )
 }

@@ -3,7 +3,7 @@
 Updated: 2026-11-25.
 
 **Status: working; tested by the owner locally in Docker. Not used on the NAS yet.**
-The downloader feature is done for now. Next session moves on to UI polish.
+The downloader feature is done for now. Next session moves on to UI polish: see [docs/UI_PLAN.md](../../UI_PLAN.md).
 
 ## Current state
 

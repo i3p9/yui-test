@@ -9,6 +9,30 @@ import { getPrismaClient } from '../lib/database.js';
 const progressRoutes: FastifyPluginAsync = async (fastify) => {
   const prisma = getPrismaClient();
 
+  // GET /api/progress?limit=12 - Recently watched, unfinished videos ("Continue watching")
+  fastify.get('/', async (request) => {
+    const limit = Math.min(Math.max(Number((request.query as any).limit) || 12, 1), 50);
+    const rows = await prisma.watchProgress.findMany({
+      where: { completed: false, positionSeconds: { gte: 10 }, video: { missingOnDisk: false } },
+      orderBy: { lastWatchedAt: 'desc' },
+      take: limit,
+      include: {
+        video: {
+          select: {
+            videoId: true, title: true, uploader: true, uploaderId: true, uploadDate: true,
+            durationSeconds: true, thumbnailPath: true, hasThumbnails: true, thumbnailSource: true,
+          },
+        },
+      },
+    });
+    return {
+      items: rows.map(({ video, positionSeconds, durationSeconds }) => ({
+        video,
+        percent: Math.min(100, Math.round((positionSeconds / (durationSeconds || video.durationSeconds || 1)) * 100)),
+      })),
+    };
+  });
+
   // POST /api/progress/:videoId - Update watch progress
   fastify.post('/:videoId', async (request, reply) => {
     const { videoId } = request.params as { videoId: string };

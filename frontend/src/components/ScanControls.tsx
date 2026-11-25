@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { startScan } from "../lib/api";
 import { ScanScheduleControls } from "./ScanScheduleControls";
+import { Button, ErrorBanner, label } from "./ui";
 
 interface ScanControlsProps {
 	onScanStarted: () => void;
@@ -11,7 +12,7 @@ export function ScanControls({
 	onScanStarted,
 	isScanning,
 }: ScanControlsProps) {
-	const [mode, setMode] = useState<"full" | "incremental">("full");
+	const [mode, setMode] = useState<"full" | "incremental">("incremental");
 	const [loading, setLoading] = useState(false);
 	const [error, setError] = useState<string | null>(null);
 	const [success, setSuccess] = useState<string | null>(null);
@@ -40,101 +41,35 @@ export function ScanControls({
 		}
 	};
 
+	const modes = [
+		{ key: "incremental", title: "Incremental", hint: "New and changed files" },
+		{ key: "full", title: "Full", hint: "All files, refresh metadata" },
+	] as const;
+
 	return (
-		<div className='border-4 border-zinc-900 bg-zinc-950 p-5 shadow-[8px_8px_0_0_#09090b]'>
-			<div className='mb-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between'>
-				<div>
-					<p className='text-xs font-mono uppercase tracking-[0.25em] text-zinc-500'>
-						CONTROL PANEL
-					</p>
-					<h2 className='mt-1 text-base font-black tracking-widest text-white'>
-						SCAN CONTROLS
-					</h2>
-				</div>
-				<div
-					className={`inline-flex items-center gap-2 border-2 px-3 py-2 text-xs font-black uppercase tracking-[0.2em] ${
-						isScanning
-							? "border-red-600 bg-red-950 text-red-400"
-							: "border-zinc-700 bg-zinc-900 text-zinc-300"
-					}`}
-				>
-					<span className='inline-block h-2 w-2 bg-current' />
-					{isScanning ? "Live" : "Standby"}
-				</div>
-			</div>
-
-			<div className='space-y-4'>
-				<div>
-					<label className='mb-2 block text-xs font-mono uppercase tracking-[0.25em] text-zinc-500'>
-						Scan Mode
+		<div className='space-y-3'>
+			<fieldset disabled={isScanning} className='grid grid-cols-2 gap-2'>
+				<legend className={`${label} mb-1`}>Scan mode</legend>
+				{modes.map((m) => (
+					<label
+						key={m.key}
+						className={`cursor-pointer border-2 px-3 py-2 transition-colors has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-red-500 ${
+							mode === m.key ? "border-red-600 bg-red-950/40" : "border-zinc-800 hover:border-zinc-600"
+						} ${isScanning ? "cursor-not-allowed opacity-50" : ""}`}
+					>
+						<input type='radio' name='scan-mode' className='sr-only' checked={mode === m.key} onChange={() => setMode(m.key)} />
+						<span className='block text-sm font-bold'>{m.title}</span>
+						<span className='block text-xs text-zinc-500'>{m.hint}</span>
 					</label>
-					<div className='flex flex-col gap-2 md:flex-row'>
-						<button
-							onClick={() => setMode("full")}
-							disabled={isScanning}
-							className={`flex-1 border-2 px-3 py-3 text-left transition-colors cursor-pointer ${
-								mode === "full"
-									? "border-red-600 bg-red-950 text-red-200"
-									: "border-zinc-800 bg-zinc-900 text-zinc-300 hover:border-zinc-600 hover:text-white"
-							} ${isScanning ? "cursor-not-allowed opacity-60" : ""}`}
-						>
-							<div className='text-sm font-black uppercase tracking-wide'>
-								Full Scan
-							</div>
-							<div className='mt-1 text-xs font-mono uppercase text-zinc-500'>
-								Scan all videos and refresh metadata
-							</div>
-						</button>
-						<button
-							onClick={() => setMode("incremental")}
-							disabled={isScanning}
-							className={`flex-1 border-2 px-3 py-3 text-left transition-colors cursor-pointer ${
-								mode === "incremental"
-									? "border-red-600 bg-red-950 text-red-200"
-									: "border-zinc-800 bg-zinc-900 text-zinc-300 hover:border-zinc-600 hover:text-white"
-							} ${isScanning ? "cursor-not-allowed opacity-60" : ""}`}
-						>
-							<div className='text-sm font-black uppercase tracking-wide'>
-								Incremental
-							</div>
-							<div className='mt-1 text-xs font-mono uppercase text-zinc-500'>
-								Only process changed files
-							</div>
-						</button>
-					</div>
-				</div>
+				))}
+			</fieldset>
 
-				<button
-					onClick={handleStartScan}
-					disabled={loading || isScanning}
-					className={`w-full border-4 px-4 py-3 font-black uppercase tracking-[0.25em] transition-colors ${
-						loading || isScanning
-							? "cursor-not-allowed border-zinc-800 bg-zinc-900 text-zinc-500"
-							: "border-green-600 bg-green-950 text-green-300 hover:border-green-500 hover:text-green-200"
-					}`}
-				>
-					{loading
-						? "Starting..."
-						: isScanning
-						? "Scan In Progress"
-						: "Initiate Scan"}
-				</button>
+			<Button variant='primary' onClick={handleStartScan} disabled={loading || isScanning}>
+				{loading ? "Starting…" : isScanning ? "Scan in progress" : `Start ${mode} scan`}
+			</Button>
 
-				{error && (
-					<div className='border-2 border-red-600 bg-red-950 p-4'>
-						<p className='text-xs font-mono uppercase tracking-widest text-red-300'>
-							{error}
-						</p>
-					</div>
-				)}
-				{success && (
-					<div className='border-2 border-green-600 bg-green-950 p-4'>
-						<p className='text-xs font-mono uppercase tracking-widest text-green-300'>
-							{success}
-						</p>
-					</div>
-				)}
-			</div>
+			{error && <ErrorBanner>{error}</ErrorBanner>}
+			{success && <p role='status' className='text-xs text-emerald-300'>{success}</p>}
 			<ScanScheduleControls />
 		</div>
 	);
