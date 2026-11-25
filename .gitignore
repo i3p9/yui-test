@@ -71,3 +71,6 @@ test-data/
 
 # Personal downloader data (old scripts, channel lists, archive, cookies)
 docs/feature/downloader/youtube/
+
+# Per-machine compose settings (see docker-compose.override.example.yml)
+docker-compose.override.yml

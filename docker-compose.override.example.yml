@@ -1,0 +1,16 @@
+# Per-machine settings. Copy to docker-compose.override.yml (ignored by git) and edit:
+#   cp docker-compose.override.example.yml docker-compose.override.yml
+# `docker compose` merges it over docker-compose.yml automatically, so `git pull`
+# never conflicts with your local paths. Check the result with `docker compose config`.
+#
+# Volumes and environment entries replace the default with the same container
+# path / variable name. Ports are added, not replaced: use `ports: !override` to change it.
+services:
+  yui:
+    volumes:
+      - /mnt/big/media/youtube:/media:ro
+      # - /path/to/more/videos:/media2:ro
+    environment:
+      - DOWNLOADS_ENABLED=false
+    # ports: !override
+    #   - "8080:3001"
