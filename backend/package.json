@@ -10,8 +10,12 @@
     "start": "node dist/index.js",
     "test:scanner": "tsx src/test-scanner.ts",
     "test:db": "tsx src/test-db-ingest.ts",
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "test:scheduler": "node --import tsx --test tests/scan-scheduler.test.ts tests/scan-api.test.ts"
+    "test": "node --import tsx --test tests/*.test.ts",
+    "test:scheduler": "node --import tsx --test tests/scan-scheduler.test.ts tests/scan-api.test.ts",
+    "test:downloader": "node --import tsx --test tests/downloads.test.ts tests/download-recovery.test.ts",
+    "test:downloader:tools": "YUI_RUN_TOOL_TESTS=1 node --import tsx tests/download-toolchain.ts",
+    "test:downloader:browser": "node tests/download-browser.mjs",
+    "test:downloader:live": "node --import tsx tests/download-live.ts"
   },
   "keywords": [],
   "author": "",

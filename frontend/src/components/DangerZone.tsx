@@ -82,6 +82,10 @@ export function DangerZone({ onReset }: DangerZoneProps) {
         <p className="mt-2 text-xs font-mono uppercase text-zinc-600">
           Advanced maintenance. Reset database and clean up generated files.
         </p>
+        <p className="mt-2 text-xs text-zinc-400">
+          Reset clears the browser index and watch progress. Download sources, schedule,
+          archive history, liked membership, and recovery data are kept. Rescan your libraries afterward.
+        </p>
       </div>
 
       {loading ? (

@@ -3,6 +3,7 @@
 // ============================================
 // Development utilities for resetting database and cleaning up thumbnails
 
+import { acquireBackgroundJob } from "../lib/background-job.js";
 import { FastifyPluginAsync } from "fastify";
 import { getPrismaClient, disconnectDatabase } from "../lib/database.js";
 import { loadConfig } from "../lib/config.js";
@@ -17,6 +18,8 @@ const dangerRoutes: FastifyPluginAsync = async (fastify) => {
 			removeMetadata?: boolean;
 		};
 	}>("/reset", async (request, reply) => {
+		const release = acquireBackgroundJob("index-reset");
+		if (!release) return reply.code(409).send({ error: "Another background job is running" });
 		try {
 			const { removeThumbnails = false, removeMetadata = false } =
 				request.body || {};
@@ -129,7 +132,7 @@ const dangerRoutes: FastifyPluginAsync = async (fastify) => {
 				error: "Reset failed",
 				message: String(error),
 			});
-		}
+		} finally { release(); }
 	});
 
 	// GET /api/danger/stats - Get current data stats (for confirmation dialog)

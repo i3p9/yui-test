@@ -55,13 +55,8 @@ model Video {
   // Status
   missingOnDisk          Boolean     @default(false) @map("missing_on_disk") // Was this file deleted?
 
-  // Liked video ordering
-  // Only meaningful for mediaType = 'liked_videos'. Stores a stable integer
-  // representing like order (1 = oldest like, higher = newer like).
-  // NULL means order is unknown. On the UI, NULLs sort last (newest by default).
-  // Populated either via the one-time txt import (Config page) or auto-assigned
-  // as MAX(liked_order)+1 when a brand new liked video is discovered in a scan.
-  likedOrder             Int?        @map("liked_order")
+  // Additive compatibility column. Runtime membership/order belongs to LikedVideo.
+  likedOrder             Int?        @map("liked_order") @ignore // Legacy column; LikedVideo owns membership/order.
 
   // Timestamps
   firstSeenAt            String      @map("first_seen_at") // When we first discovered this video
@@ -157,4 +152,65 @@ model ScanLog {
   errors            String?     // JSON array of errors (if any occurred)
 
   @@map("scan_log")
+}
+
+model LikedVideo {
+  videoId     String @id @map("video_id")
+  likedOrder  Int?   @map("liked_order")
+  firstSeenAt String @map("first_seen_at")
+
+  @@index([likedOrder])
+  @@map("liked_video")
+}
+
+model DownloadSettings {
+  id              Int     @id @default(1)
+  scheduleEnabled Boolean @default(false)
+  intervalHours   Int     @default(24)
+  nextRunAt       String?
+
+  @@map("download_settings")
+}
+
+model DownloadSource {
+  id            String @id @default(uuid())
+  name          String
+  url           String @unique
+  kind          String
+  quality       String @default("1080p")
+  libraryPath   String
+  enabled       Boolean @default(true)
+  useCookies    Boolean @default(false)
+  uploadedAfter String?
+  position      Int @default(0)
+  createdAt     String
+  updatedAt     String
+  runs          DownloadRun[]
+
+  @@map("download_source")
+}
+
+model DownloadRun {
+  id             String @id @default(uuid())
+  sourceId       String?
+  source         DownloadSource? @relation(fields: [sourceId], references: [id], onDelete: SetNull)
+  trigger        String
+  snapshot       String
+  videoKey       String?
+  status         String @default("queued")
+  phase          String @default("preparing")
+  createdAt      String
+  startedAt      String?
+  endedAt        String?
+  exitCode       Int?
+  error          String?
+  publishedCount Int @default(0)
+  finalized      Boolean @default(false)
+  scanStatus     String @default("not_needed")
+  scanId         Int?
+  scanError      String?
+
+  @@index([status, createdAt])
+  @@index([scanStatus])
+  @@map("download_run")
 }

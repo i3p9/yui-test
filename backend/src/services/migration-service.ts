@@ -16,7 +16,6 @@ export class MigrationService {
 
     try {
       await this.setupFTS5();
-      await this.addLikedOrderColumn();
       await this.addChannelImageColumns();
       console.log('✅ All migrations completed successfully');
     } catch (error) {
@@ -80,38 +79,6 @@ export class MigrationService {
     `);
 
     console.log('✅ FTS5 setup completed');
-  }
-
-  /**
-   * Add liked_order column to the video table if it doesn't exist.
-   *
-   * This is a safety-net migration that runs at startup alongside the Prisma
-   * migration file (20260307220000_add_liked_order). It handles environments
-   * where `prisma migrate deploy` may not have been run (e.g. direct DB push,
-   * existing installs upgrading without running migrations explicitly).
-   *
-   * liked_order is an INTEGER column on the `video` table:
-   * - Only meaningful for rows where media_type = 'liked_videos'
-   * - Populated via the Config page one-time txt import, or auto-assigned
-   *   as MAX(liked_order)+1 for newly discovered liked videos during scans
-   * - NULL = order unknown; the UI sorts NULLs last (ASC NULLS LAST)
-   */
-  async addLikedOrderColumn(): Promise<void> {
-    const hasColumn = await this.checkColumnExists('video', 'liked_order');
-
-    if (hasColumn) {
-      console.log('📝 liked_order column already exists, skipping');
-      return;
-    }
-
-    console.log('➕ Adding liked_order column to video table...');
-    await this.prisma.$executeRawUnsafe(
-      `ALTER TABLE "video" ADD COLUMN "liked_order" INTEGER`
-    );
-    await this.prisma.$executeRawUnsafe(
-      `CREATE INDEX IF NOT EXISTS "video_liked_order_idx" ON "video"("liked_order")`
-    );
-    console.log('✅ liked_order column added');
   }
 
   /**

@@ -24,11 +24,20 @@ Edit `docker-compose.yml` and update the volume mounts to point to your actual v
 ```yaml
 volumes:
   # Map your video library to /media in the container
-  - /path/to/your/videos:/media:ro
+  - /path/to/your/videos:/media       # writable download destination
+  # Use :ro instead for a scan-only library
 
   # For multiple libraries, add more volumes:
   # - /path/to/liked/videos:/media/liked:ro
 ```
+
+Download destinations must be existing, writable directories. Keep read-only mounts
+for libraries used only for scanning/browsing. The Compose service uses `init: true`
+and a 30-second stop grace period so download/postprocessing children can stop cleanly.
+Downloader state persists under `./config/.downloads` alongside configuration; back it
+up with SQLite. Do not run a separate cron downloader against the same destinations.
+
+See [Downloads setup and cutover](docs/feature/downloader/README.md).
 
 ### 3. Configure the Application
 
@@ -150,7 +159,11 @@ Thumbnails are generated automatically during scans:
 
 ## 📊 Metadata Fetching
 
-The Docker image includes **yt-dlp** for fetching missing metadata from YouTube.
+The Docker image uses Node 24, ffmpeg, and a Python virtual environment with the
+**latest yt-dlp** (with its matching yt-dlp-ejs) for downloads and metadata. It is not
+pinned: the container updates yt-dlp on every start and once a day while running, because
+YouTube breaks older versions often. An update failure (e.g. no network) keeps the
+installed version. Node is the JS runtime. Check Downloads → Tools for the current version.
 
 On startup, the entrypoint script checks:
 ```

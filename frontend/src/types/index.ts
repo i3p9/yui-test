@@ -4,6 +4,7 @@ export interface HealthResponse {
 	status: string;
 	message: string;
 	timestamp: string;
+	downloadsEnabled?: boolean;
 }
 
 export interface Library {

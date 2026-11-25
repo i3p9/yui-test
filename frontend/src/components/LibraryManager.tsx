@@ -252,8 +252,6 @@ export function LibraryManager() {
             >
               <option value="channel_archive">Channel Archive</option>
               <option value="liked_videos">Liked Videos</option>
-              <option value="watch_later">Watch Later</option>
-              <option value="playlist">Playlist</option>
             </select>
             <input
               type="text"

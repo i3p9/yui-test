@@ -1,6 +1,7 @@
 import { Link, useLocation } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { SearchInput } from "./SearchInput";
+import { getHealth } from "../lib/api";
 
 interface LayoutProps {
 	children: React.ReactNode;
@@ -31,6 +32,12 @@ function LikedIcon({ className }: { className?: string }) {
 			<path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" />
 		</svg>
 	);
+}
+
+function DownloadsIcon({ className }: { className?: string }) {
+	return <svg className={className} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+		<path strokeWidth="2" d="M12 3v12m-5-5 5 5 5-5M4 16v5h16v-5" />
+	</svg>;
 }
 
 function ConfigIcon({ className }: { className?: string }) {
@@ -64,6 +71,7 @@ const NAV_ITEMS = [
 	{ to: "/",          label: "HOME",      Icon: HomeIcon,     exact: true  },
 	{ to: "/channels",  label: "CHANNELS",  Icon: ChannelsIcon, exact: false },
 	{ to: "/liked",     label: "LIKED",     Icon: LikedIcon,    exact: false },
+	{ to: "/downloads", label: "DOWNLOADS", Icon: DownloadsIcon, exact: false },
 	{ to: "/configure", label: "CONFIG",    Icon: ConfigIcon,   exact: false },
 ] as const;
 
@@ -83,6 +91,13 @@ export function Layout({ children }: LayoutProps) {
 	useEffect(() => {
 		localStorage.setItem("sidebarCollapsed", JSON.stringify(isSidebarCollapsed));
 	}, [isSidebarCollapsed]);
+
+	// Hide the Downloads tab when the server runs with DOWNLOADS_ENABLED=false.
+	const [downloadsEnabled, setDownloadsEnabled] = useState(true);
+	useEffect(() => {
+		getHealth().then((h) => setDownloadsEnabled(h.downloadsEnabled !== false)).catch(() => {});
+	}, []);
+	const navItems = NAV_ITEMS.filter((item) => item.to !== "/downloads" || downloadsEnabled);
 
 	// Auto-collapse sidebar on watch page (desktop)
 	useEffect(() => {
@@ -140,7 +155,7 @@ export function Layout({ children }: LayoutProps) {
 					}`}
 				>
 					<nav className="p-4 space-y-1 w-64">
-						{NAV_ITEMS.map(({ to, label, Icon, exact }) => (
+						{navItems.map(({ to, label, Icon, exact }) => (
 							<Link
 								key={to}
 								to={to}
@@ -173,7 +188,7 @@ export function Layout({ children }: LayoutProps) {
 					style={{ paddingBottom: "env(safe-area-inset-bottom, 0px)" }}
 				>
 					<div className="flex">
-						{NAV_ITEMS.map(({ to, label, Icon, exact }) => {
+						{navItems.map(({ to, label, Icon, exact }) => {
 							const active = isActive(to, exact);
 							return (
 								<Link

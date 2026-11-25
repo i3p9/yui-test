@@ -2,6 +2,7 @@
 // VIDEO ROUTES
 // ============================================
 
+import { LikedVideoOrderService } from '../services/liked-video-order-service.js';
 import { FastifyPluginAsync } from 'fastify';
 import { getPrismaClient } from '../lib/database.js';
 
@@ -90,6 +91,7 @@ const videoRoutes: FastifyPluginAsync = async (fastify) => {
     // Convert BigInt to Number for JSON serialization
     return {
       ...video,
+      likedOrder: (await prisma.likedVideo.findUnique({ where: { videoId: id } }))?.likedOrder ?? null,
       filesizeBytes: video.filesizeBytes ? Number(video.filesizeBytes) : null,
     };
   });

@@ -10,6 +10,8 @@ import {
 	ScanScheduleSchema,
 } from "../lib/config.js";
 import { scanScheduler } from "../services/scan-scheduler.js";
+import { downloadService, downloadsEnabled } from "../services/download-service.js";
+import { DownloadError } from "../services/download-validation.js";
 import type { Config } from "../types/index.js";
 import { LikedVideoOrderService } from "../services/liked-video-order-service.js";
 import { ChannelImageDownloader } from "../services/channel-image-downloader.js";
@@ -49,6 +51,11 @@ const configRoutes: FastifyPluginAsync = async (fastify) => {
 				});
 			}
 
+			const current = await loadConfig();
+			const changesExisting = current.libraries.some(old => !newConfig.libraries.some(next =>
+				next.path === old.path && next.mediaType === old.mediaType && next.skip === old.skip));
+			if (changesExisting && downloadsEnabled()) await downloadService.assertLibraryChanges(newConfig.libraries);
+
 			// Library editors omit the schedule so a stale copy cannot replace it.
 			const schedule = newConfig.scanSchedule === undefined
 				? undefined : ScanScheduleSchema.safeParse(newConfig.scanSchedule);
@@ -65,8 +72,8 @@ const configRoutes: FastifyPluginAsync = async (fastify) => {
 				config: savedConfig,
 			};
 		} catch (error) {
-			return reply.code(500).send({
-				error: "Failed to update config",
+			return reply.code(error instanceof DownloadError ? error.statusCode : 500).send({
+				error: error instanceof DownloadError ? error.message : "Failed to update config",
 				message: String(error),
 			});
 		}

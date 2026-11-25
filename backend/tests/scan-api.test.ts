@@ -112,6 +112,7 @@ test("scan scheduling API and pipeline integration with isolated config and data
 			orchestrator.scanner = {
 				scanLibrary: async (library: { path: string }) => { walked.push(library.path); return []; },
 				getCollectedChannelImages: () => [],
+				getTraversalErrors: () => [],
 			};
 			orchestrator.db = {
 				createScanLog: async () => 1,

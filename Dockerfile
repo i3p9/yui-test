@@ -1,7 +1,7 @@
 # ============================================
 # Build Stage 1: Frontend
 # ============================================
-FROM node:20-alpine AS frontend-builder
+FROM node:24-alpine AS frontend-builder
 
 WORKDIR /app/frontend
 
@@ -21,7 +21,7 @@ RUN pnpm build
 # ============================================
 # Build Stage 2: Backend
 # ============================================
-FROM node:20-alpine AS backend-builder
+FROM node:24-alpine AS backend-builder
 
 WORKDIR /app/backend
 
@@ -45,15 +45,20 @@ RUN pnpm build
 # ============================================
 # Production Stage
 # ============================================
-FROM node:20-alpine
+FROM node:24-alpine
 
 WORKDIR /app
 
 # Install system dependencies
 # - ffmpeg: Required for thumbnail generation from videos
-# - yt-dlp: Required for fetching metadata from YouTube
+# - yt-dlp: Downloads and metadata. Deliberately unpinned: YouTube changes often, so the
+#   image installs the latest release and the entrypoint updates it on start and daily.
+#   [default] includes the matching yt-dlp-ejs; Node is used as its JS runtime.
 # - python3: Required by yt-dlp
-RUN apk add --no-cache ffmpeg yt-dlp python3
+RUN apk add --no-cache ffmpeg python3 py3-pip \
+    && python3 -m venv /opt/yt-dlp \
+    && /opt/yt-dlp/bin/pip install --no-cache-dir --upgrade 'yt-dlp[default]'
+ENV PATH="/opt/yt-dlp/bin:${PATH}"
 
 # Install pnpm
 RUN corepack enable && corepack prepare pnpm@10.15.1 --activate
@@ -85,7 +90,7 @@ RUN mkdir -p /data /config
 EXPOSE 3001
 
 # Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=10s --retries=3 \
+HEALTHCHECK --interval=30s --timeout=3s --start-period=60s --retries=3 \
   CMD node -e "require('http').get('http://localhost:3001/api/health', (r) => {process.exit(r.statusCode === 200 ? 0 : 1)})"
 
 # Run migrations and start application

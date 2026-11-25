@@ -1,0 +1,21 @@
+# Local Docker test: same image as production, but throwaway folders and port 3002,
+# so it never touches the real database, config, or NAS media.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.test.yml up --build
+#   open http://localhost:3002
+#   docker compose -f docker-compose.yml -f docker-compose.test.yml down
+#
+# Start over by deleting ./test-data. In the app, add a library at /media/channels
+# (Channel Archive) and/or /media/liked (Liked Videos); create them under ./test-data/media.
+services:
+  yui:
+    container_name: yui-test
+    restart: "no"
+    ports: !override
+      - "3002:3001"
+    volumes: !override
+      - ./test-data/config:/config
+      - ./test-data/data:/data
+      - ./test-data/thumbnails:/app/.thumbnails
+      - ./test-data/metadata:/app/.metadata
+      - ./test-data/media:/media

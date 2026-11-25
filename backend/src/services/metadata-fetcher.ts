@@ -3,15 +3,14 @@
 // ============================================
 // Fetches missing metadata from YouTube using yt-dlp
 
-import { exec } from "child_process";
-import { promisify } from "util";
+import { runYtDlp } from "./yt-dlp-runner.js";
 import { mkdir, readFile, stat } from "fs/promises";
 import { join, basename, dirname } from "path";
 import { existsSync } from "fs";
 import pLimit from "p-limit";
 import type { InfoJson } from "../types/index.js";
 
-const execAsync = promisify(exec);
+
 
 export interface MetadataFetchJob {
 	videoId: string;
@@ -125,7 +124,8 @@ export class MetadataFetcher {
 			);
 
 			// Execute yt-dlp
-			await execAsync(command, { maxBuffer: 10 * 1024 * 1024 });
+			const result = await runYtDlp(command, { timeoutMs: 10 * 60_000 });
+			if (result.exitCode !== 0 || result.error) throw new Error(result.error || "yt-dlp failed");
 
 			// Check if info.json was created
 			if (!existsSync(infoJsonPath)) {
@@ -227,12 +227,12 @@ export class MetadataFetcher {
 		videoId: string,
 		outputDir: string,
 		fetchThumbnail: boolean
-	): string {
+	): string[] {
 		const videoUrl = `https://www.youtube.com/watch?v=${videoId}`;
 
 		// Base command
 		const parts = [
-			"yt-dlp",
+			"--no-playlist",
 			"--write-info-json",
 			"--skip-download", // Don't download the video
 		];
@@ -243,12 +243,12 @@ export class MetadataFetcher {
 		}
 
 		// Output template
-		parts.push("-o", `"${join(outputDir, videoId)}.%(ext)s"`);
+		parts.push("-o", `${join(outputDir, videoId)}.%(ext)s`);
 
 		// Video URL
-		parts.push(`"${videoUrl}"`);
+		parts.push("--", videoUrl);
 
-		return parts.join(" ");
+		return parts;
 	}
 
 	/**

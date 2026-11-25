@@ -13,6 +13,18 @@ else
     echo "✓ ffmpeg available ($(ffmpeg -version | head -n1))"
 fi
 
+# Keep yt-dlp current: YouTube breaks old versions often. Failure (e.g. offline) is not fatal.
+update_ytdlp() {
+    /opt/yt-dlp/bin/pip install --quiet --no-cache-dir --upgrade --retries 1 --timeout 15 'yt-dlp[default]' \
+        || echo "⚠️  yt-dlp update failed; keeping the installed version"
+}
+if [ -x /opt/yt-dlp/bin/pip ]; then
+    echo "🔄 Updating yt-dlp..."
+    update_ytdlp
+    # Long-running containers also refresh daily; each download starts a fresh yt-dlp process.
+    ( while sleep 86400; do update_ytdlp; done ) &
+fi
+
 # Check if yt-dlp is available (required for metadata fetching)
 if ! command -v yt-dlp >/dev/null 2>&1; then
     echo "⚠️  WARNING: yt-dlp not found - metadata fetching will fail"

@@ -9,6 +9,7 @@ import type {
 	Library,
 	ChannelImageCandidate,
 } from "../types/index.js";
+import { LikedVideoOrderService } from "./liked-video-order-service.js";
 import { SearchService } from "./search-service.js";
 
 export class DatabaseService {
@@ -25,6 +26,7 @@ export class DatabaseService {
 		library: Library,
 		options?: { skipFtsSync?: boolean }
 	): Promise<'added' | 'updated' | 'skipped'> {
+		if (metadata.mediaType === "liked_videos") await new LikedVideoOrderService().record(metadata.videoId);
 		const existing = await this.prisma.video.findUnique({
 			where: { videoId: metadata.videoId },
 		});
@@ -49,10 +51,6 @@ export class DatabaseService {
 						missingOnDisk: false,
 					},
 				});
-				// Backfill liked_order if missing (e.g. added before the bug fix)
-				if (metadata.mediaType === 'liked_videos' && existing.likedOrder === null) {
-					await this.assignLikedOrder(metadata.videoId);
-				}
 				return 'skipped';
 			}
 		} else {
@@ -79,8 +77,8 @@ export class DatabaseService {
 			)
 		`);
 		await this.prisma.$executeRawUnsafe(`
-			INSERT INTO videos_fts(video_id, title, uploader, description)
-			SELECT video_id, COALESCE(title, ''), COALESCE(uploader, ''), COALESCE(description, '')
+          INSERT INTO videos_fts(rowid, video_id, title, uploader, description)
+          SELECT rowid, video_id, COALESCE(title, ''), COALESCE(uploader, ''), COALESCE(description, '')
 			FROM video WHERE missing_on_disk = false
 		`);
 
@@ -93,8 +91,8 @@ export class DatabaseService {
 			)
 		`);
 		await this.prisma.$executeRawUnsafe(`
-			INSERT INTO channels_fts(uploader_id, name)
-			SELECT uploader_id, COALESCE(name, '') FROM channel
+          INSERT INTO channels_fts(rowid, uploader_id, name)
+          SELECT rowid, uploader_id, COALESCE(name, '') FROM channel
 		`);
 		console.log('FTS5 indexes rebuilt.');
 	}
@@ -125,29 +123,6 @@ export class DatabaseService {
 		const newSize = BigInt(newMetadata.filesizeBytes ?? 0);
 
 		return newSize > existingSize;
-	}
-
-	/**
-	 * Auto-assign liked_order for a newly inserted liked video.
-	 *
-	 * Queries the current MAX(liked_order) across all liked_videos rows and
-	 * assigns MAX+1 to the new video. This ensures newly discovered liked
-	 * videos (ones that weren't in the historical txt import) always sort
-	 * after the historically-ordered ones, which is the correct assumption:
-	 * if a video just showed up in a scan, it was liked recently.
-	 *
-	 * Gaps in liked_order are fine — the UI just sorts by the number.
-	 */
-	private async assignLikedOrder(videoId: string): Promise<void> {
-		const result = await this.prisma.$queryRaw<
-			[{ maxOrder: bigint | null }]
-		>`SELECT MAX(liked_order) as maxOrder FROM video WHERE media_type = 'liked_videos'`;
-
-		const maxOrder = Number(result[0]?.maxOrder ?? 0);
-		await this.prisma.video.update({
-			where: { videoId },
-			data: { likedOrder: maxOrder + 1 },
-		});
 	}
 
 	/**
@@ -199,11 +174,7 @@ export class DatabaseService {
 			});
 		}
 
-		// Auto-assign liked_order for new liked videos so they sort after
-		// any historically-imported order entries (i.e. recent likes go last)
-		if (metadata.mediaType === "liked_videos") {
-			await this.assignLikedOrder(metadata.videoId);
-		}
+
 	}
 
 	/**
@@ -302,7 +273,7 @@ export class DatabaseService {
 	/**
 	 * Update channel statistics
 	 */
-	async updateChannelStats(uploaderId: string): Promise<void> {
+	async updateChannelStats(uploaderId: string, options?: { skipFtsSync?: boolean }): Promise<void> {
 		// Count videos for this channel
 		const videoCount = await this.prisma.video.count({
 			where: { uploaderId, missingOnDisk: false },
@@ -335,14 +306,15 @@ export class DatabaseService {
 		});
 
 		// Sync with FTS5 after channel update
-		await this.searchService.syncChannel(uploaderId);
+		if (!options?.skipFtsSync) await this.searchService.syncChannel(uploaderId);
 	}
 
 	/**
 	 * Update channel thumbnail from detected channel images
 	 */
 	async updateChannelThumbnail(
-		channelImage: ChannelImageCandidate
+		channelImage: ChannelImageCandidate,
+		options?: { skipFtsSync?: boolean }
 	): Promise<void> {
 
 		await this.prisma.channel.upsert({
@@ -362,7 +334,7 @@ export class DatabaseService {
 		});
 
 		// Sync with FTS5 after channel thumbnail update
-		await this.searchService.syncChannel(channelImage.channelId);
+		if (!options?.skipFtsSync) await this.searchService.syncChannel(channelImage.channelId);
 	}
 
 	/**

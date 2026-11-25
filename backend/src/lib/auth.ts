@@ -50,12 +50,8 @@ export function revokeSession(token: string): void {
  */
 export async function getConfiguredPassword(): Promise<string | null> {
 	if (process.env.AUTH_PASSWORD) return process.env.AUTH_PASSWORD;
-	try {
-		const config = await loadConfig();
-		return config.auth?.password ?? null;
-	} catch {
-		return null;
-	}
+	const config = await loadConfig();
+	return config.auth?.password || null;
 }
 
 /** True when a password is configured (auth is active). */
@@ -78,7 +74,6 @@ export async function authMiddleware(
 	request: FastifyRequest,
 	reply: FastifyReply
 ): Promise<void> {
-	if (!(await isAuthEnabled())) return; // open access
 
 	const url = request.url;
 
@@ -92,6 +87,12 @@ export async function authMiddleware(
 
 	// Only guard API routes (static frontend files are not prefixed /api/)
 	if (!url.startsWith("/api/")) return;
+
+	try {
+		if (!(await isAuthEnabled())) return;
+	} catch {
+		return reply.code(503).send({ error: "Authentication configuration unavailable" });
+	}
 
 	// Extract token from header or query string
 	const authHeader = request.headers.authorization;

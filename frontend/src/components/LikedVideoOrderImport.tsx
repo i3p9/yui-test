@@ -104,7 +104,8 @@ export function LikedVideoOrderImport() {
         </h2>
         <p className="mt-2 text-sm text-zinc-400">
           YouTube doesn't expose when a video was liked. Upload a txt file mapping
-          serial numbers to YouTube IDs to enable chronological ordering.
+          serial numbers to YouTube IDs to set their order, including videos not downloaded yet.
+          A later successful Liked Videos sync uses the account playlist order and keeps historical likes.
         </p>
       </div>
 
@@ -129,7 +130,7 @@ export function LikedVideoOrderImport() {
             </div>
             <div>
               <p className="text-2xl font-black text-white">{result.notFound}</p>
-              <p className="text-xs font-mono uppercase text-amber-400">Not Found</p>
+              <p className="text-xs font-mono uppercase text-amber-400">Invalid</p>
             </div>
             <div>
               <p className="text-2xl font-black text-white">{result.total}</p>
@@ -138,8 +139,7 @@ export function LikedVideoOrderImport() {
           </div>
           {result.notFound > 0 && (
             <p className="mt-3 text-xs font-mono text-zinc-400">
-              "{result.notFound}" entries didn't match any liked video in the library.
-              They may be videos you liked but haven't archived yet.
+              {result.notFound} entries had an invalid serial number or YouTube video ID.
             </p>
           )}
         </div>

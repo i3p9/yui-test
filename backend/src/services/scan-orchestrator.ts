@@ -73,7 +73,14 @@ export class ScanOrchestrator {
 				try {
 					// Walk the library and find video candidates
 					const candidates = await this.scanner.scanLibrary(library);
-					scannedLibraryPaths.add(library.path);
+					const traversalErrors = this.scanner.getTraversalErrors();
+					if (traversalErrors.length) {
+						// Index what was readable, but skip missing-file reconciliation for
+						// this library because unread folders would look deleted.
+						stats.errors.push(...traversalErrors.map(e => `${library.name}: ${e}`));
+					} else {
+						scannedLibraryPaths.add(library.path);
+					}
 					console.log(`Found ${candidates.length} candidates`);
 
 					// Parse metadata in parallel batches, but write to DB sequentially
@@ -134,7 +141,7 @@ export class ScanOrchestrator {
 					// Update channel stats
 					for (const uploaderId of seenUploaderIds) {
 						try {
-							await this.db.updateChannelStats(uploaderId);
+							await this.db.updateChannelStats(uploaderId, { skipFtsSync: true });
 						} catch (error) {
 							console.error(
 								`Failed to update channel stats for ${uploaderId}:`,
@@ -200,7 +207,7 @@ export class ScanOrchestrator {
 
 		for (const channelImage of channelImages) {
 			try {
-				await this.db.updateChannelThumbnail(channelImage);
+				await this.db.updateChannelThumbnail(channelImage, { skipFtsSync: true });
 			} catch (error) {
 				console.error(`Failed to update channel thumbnail for ${channelImage.channelName}:`, error);
 			}

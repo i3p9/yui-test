@@ -77,3 +77,15 @@ backend/dist/
 
 # Prisma temp files
 backend/prisma/migrations/*/migration.sql~
+
+# Private downloader references and runtime state
+docs/feature/downloader/youtube/
+**/cookies*.txt
+**/.downloads/
+**/.yui-staging/
+backend/tests/
+test-results/
+playwright-report/
+
+# Local Docker test data
+test-data/

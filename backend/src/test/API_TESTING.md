@@ -367,3 +367,10 @@ lsof -ti:3001 | xargs kill -9
    ```bash
    npx prisma studio
    ```
+
+## Downloads
+
+The integrated downloader uses `/api/downloads` and the existing auth gate. See the
+[Downloads API reference](../../../docs/feature/downloader/README.md#api) for source, queue,
+schedule, cookie, import, and tool-status endpoints. Run `pnpm test:downloader` from
+`backend` for isolated migration, recovery, filesystem, process, and route checks.

@@ -3,6 +3,7 @@
 // ============================================
 // Handles library browsing: latest videos, channels, liked videos, etc.
 
+import { LikedVideoOrderService } from '../services/liked-video-order-service.js';
 import { FastifyPluginAsync } from 'fastify';
 import { createReadStream } from 'fs';
 import { access } from 'fs/promises';
@@ -258,52 +259,16 @@ const libraryRoutes: FastifyPluginAsync = async (fastify) => {
     // sort: 'desc' = newest like first (default), 'asc' = oldest like first
     const sortDir = sort === 'asc' ? 'asc' : 'desc';
 
-    const skip = (Number(page) - 1) * Number(limit);
-
-    const [videos, total] = await Promise.all([
-      prisma.video.findMany({
-        where: {
-          mediaType: 'liked_videos',
-          missingOnDisk: false,
-        },
-        skip,
-        take: Number(limit),
-        // NULLs always sort last regardless of direction.
-        orderBy: [{ likedOrder: { sort: sortDir, nulls: 'last' } }],
-        select: {
-          videoId: true,
-          title: true,
-          uploader: true,
-          uploadDate: true,
-          durationSeconds: true,
-          thumbnailPath: true,
-          hasThumbnails: true,
-          thumbnailSource: true,
-          resolution: true,
-          mediaType: true,
-          uploaderId: true,
-          filesizeBytes: true,
-        },
-      }),
-      prisma.video.count({
-        where: { mediaType: 'liked_videos', missingOnDisk: false },
-      }),
+    if (!Number.isInteger(Number(page)) || Number(page) < 1 || !Number.isInteger(Number(limit)) || Number(limit) < 1 || Number(limit) > 200) {
+      return reply.code(400).send({ error: 'Invalid pagination' });
+    }
+    const service = new LikedVideoOrderService();
+    const [videos, status] = await Promise.all([
+      service.list({ limit: Number(limit), skip: (Number(page) - 1) * Number(limit), order: sortDir }),
+      service.getStatus(),
     ]);
-
-    const videosWithConvertedSize = videos.map((v) => ({
-      ...v,
-      filesizeBytes: v.filesizeBytes ? Number(v.filesizeBytes) : null,
-    }));
-
-    return {
-      videos: videosWithConvertedSize,
-      pagination: {
-        page: Number(page),
-        limit: Number(limit),
-        total,
-        pages: Math.ceil(total / Number(limit)),
-      },
-    };
+    return { videos, pagination: { page: Number(page), limit: Number(limit), total: status.totalLiked,
+      pages: Math.ceil(status.totalLiked / Number(limit)) } };
   });
 
   // GET /api/library/video/:videoId/related - Get related videos
@@ -350,30 +315,8 @@ const libraryRoutes: FastifyPluginAsync = async (fastify) => {
         },
       });
     } else {
-      // Show other liked videos
-      relatedVideos = await prisma.video.findMany({
-        where: {
-          mediaType: 'liked_videos',
-          videoId: { not: videoId },
-          missingOnDisk: false,
-        },
-        take: Number(limit),
-        orderBy: { uploadDate: 'desc' },
-        select: {
-          videoId: true,
-          title: true,
-          uploader: true,
-          uploadDate: true,
-          durationSeconds: true,
-          thumbnailPath: true,
-          hasThumbnails: true,
-          thumbnailSource: true,
-          resolution: true,
-          mediaType: true,
-          uploaderId: true,
-          filesizeBytes: true,
-        },
-      });
+      relatedVideos = await new LikedVideoOrderService().list({ limit: Math.max(1, Math.min(200, Number(limit) || 20)),
+        exclude: videoId, byUpload: true });
     }
 
     const videosWithConvertedSize = relatedVideos.map((v) => ({
@@ -405,7 +348,12 @@ const libraryRoutes: FastifyPluginAsync = async (fastify) => {
     if (currentVideo.mediaType === 'channel_archive' && currentVideo.uploaderId) {
       whereClause.uploaderId = currentVideo.uploaderId;
     } else {
-      whereClause.mediaType = 'liked_videos';
+      const service = new LikedVideoOrderService();
+      const [prev, next] = await Promise.all([
+        service.list({ limit: 1, before: uploadDate, byUpload: true }),
+        service.list({ limit: 1, after: uploadDate, byUpload: true, order: 'asc' }),
+      ]);
+      return { prev: prev[0] ?? null, next: next[0] ?? null };
     }
 
     // Get previous video (older upload date)

@@ -57,3 +57,17 @@ tmp/
 # Persisted automatic scan schedule
 *.scan-schedule.json
 *.scan-schedule.json.tmp
+
+# Downloader credentials and runtime state
+**/cookies.txt
+**/cookies*.txt
+**/.downloads/
+**/.yui-staging/
+playwright-report/
+test-results/
+
+# Local Docker test data (docker-compose.test.yml)
+test-data/
+
+# Personal downloader data (old scripts, channel lists, archive, cookies)
+docs/feature/downloader/youtube/

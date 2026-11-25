@@ -25,7 +25,7 @@ const API_BASE = "/api";
 export const AUTH_EXPIRED_EVENT = "yui:auth-expired";
 
 // Helper for fetch with error handling
-async function fetchAPI<T>(
+export async function fetchAPI<T>(
 	endpoint: string,
 	options?: RequestInit
 ): Promise<T> {
@@ -57,7 +57,11 @@ async function fetchAPI<T>(
 		const error = await response
 			.json()
 			.catch(() => ({ error: "Unknown error" }));
-		throw new Error(error.error || `HTTP ${response.status}`);
+		const labels: Record<string, string> = { libraryPath: 'Destination library', uploadedAfter: 'Upload date',
+			intervalHours: 'Interval', useCookies: 'Account cookies', scheduleEnabled: 'Schedule' };
+		const fields = Object.entries(error.fields?.fieldErrors ?? {}).flatMap(([field, messages]) =>
+			Array.isArray(messages) ? messages.map(message => `${labels[field] ?? field}: ${message}`) : []);
+		throw new Error([error.error || `HTTP ${response.status}`, ...fields].join('; '));
 	}
 
 	return response.json();
@@ -292,12 +296,7 @@ export const startChannelImageDownload = () =>
 		method: "POST",
 	});
 
-// Liked Video Order
-// The liked_order feature lets users order their liked videos chronologically.
-// Since YouTube's API has no "liked at" timestamp, ordering is established via
-// a one-time txt file import (Config page). New liked videos discovered in
-// future scans are automatically assigned MAX(liked_order)+1.
-
+// Liked membership/order is independent of file location and may precede media.
 export interface LikedOrderStatus {
 	totalLiked: number;
 	withOrder: number;

@@ -4,6 +4,7 @@ Self-hosted web application for browsing and managing offline YouTube archives c
 
 ## Features
 
+- **Integrated Downloads** - Channels, playlists, likes, and one-off videos; configurable quality and 24-hour scheduling
 - **File System Scanner** - Discovers videos from yt-dlp downloads
 - **Metadata Parsing** - Extracts info from `.info.json` files and filenames
 - **Web UI** - Scanner management interface with real-time progress
@@ -35,8 +36,8 @@ volumes:
   - ./data:/data                # Database
   - ./thumbnails:/app/.thumbnails
 
-  # Add your video libraries (use :ro for read-only)
-  - /path/to/youtube/archive:/media/archive:ro
+  # Writable destination for integrated downloads; use :ro for scan-only libraries
+  - /path/to/youtube/archive:/media/archive
   - /path/to/liked/videos:/media/liked:ro
 ```
 
@@ -68,6 +69,24 @@ Then you can add libraries:
 
 See [DEPLOYMENT.md](DEPLOYMENT.md) for complete deployment documentation.
 
+## Integrated Downloads
+
+The implementation is awaiting personal acceptance testing. See the
+[next-session handoff](docs/feature/downloader/HANDOFF.md) for current status.
+
+Open **Downloads** to add channel/playlist sources, choose 720p, 1080p, or Best quality,
+and run them manually or on a shared configurable schedule (24 hours by default, off
+until enabled). Completed files are scanned automatically. Existing downloads are kept
+when quality settings change, and a channel video can also appear in Liked using the
+same file. Liked Videos requires exported account cookies.
+
+Download destinations need writable mounts. Existing read-only libraries remain suitable
+for scanning/browsing. For an existing NAS setup, scan first, import source lists/archive,
+and disable the old download cron jobs before enabling YUI downloads.
+
+See the [Downloads setup and API guide](docs/feature/downloader/README.md) and
+[validation report](docs/feature/downloader/VALIDATION.md).
+
 ## Automatic Library Scans
 
 Open **Configure → Scan Controls → Automatic scans**, enable scheduling, choose an
@@ -92,7 +111,8 @@ For local development without Docker:
 
 ### Prerequisites
 
-- Node.js 18+ and pnpm
+- Node.js 24 LTS and pnpm 10.15.1
+- ffmpeg and a tested yt-dlp/EJS installation for downloading
 - yt-dlp archive folder (videos downloaded with `[videoId]` in filename)
 
 ### 1. Clone and Install
@@ -138,7 +158,8 @@ Edit `config.json` in the project root:
 
 ```bash
 cd backend
-pnpm prisma migrate dev
+pnpm exec prisma migrate deploy
+pnpm exec prisma generate
 ```
 
 ### 4. Run Development Servers
@@ -185,7 +206,7 @@ yui/
 │   │   ├── lib/          # Utilities
 │   │   └── types/        # TypeScript types
 │   ├── prisma/           # Database schema
-│   └── API_TESTING.md    # API documentation
+│   └── src/test/API_TESTING.md # API documentation
 ├── frontend/             # Vite + React UI
 │   ├── src/
 │   │   ├── components/  # React components
@@ -215,12 +236,14 @@ yui/
 
 ### Database (SQLite + Prisma)
 
-5 main tables:
+9 main tables:
 - `Video` - Video metadata and file paths
 - `Subtitle` - Subtitle tracks
 - `Channel` - Channel/uploader info
-- `WatchProgress` - Playback position (future)
+- `WatchProgress` - Playback position
 - `ScanLog` - Scan history and stats
+- `LikedVideo` - Liked membership/order independent of file location
+- `DownloadSettings`, `DownloadSource`, `DownloadRun` - Schedule, sources, queue/history
 
 ## API Endpoints
 

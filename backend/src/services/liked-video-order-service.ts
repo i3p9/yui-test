@@ -1,132 +1,90 @@
-// ============================================
-// LIKED VIDEO ORDER SERVICE
-// ============================================
-// Manages the liked_order column on liked_videos rows.
-//
-// Background
-// ----------
-// YouTube's API provides no "liked at" timestamp, so we can't determine
-// the chronological like order from the API alone. The solution:
-//
-//   1. One-time txt import  — User uploads a file (via Config page) that
-//      maps serial numbers to YouTube IDs. Serial 1 = oldest like, N = newest.
-//      This populates liked_order for all existing videos in the DB.
-//
-//   2. Auto-assign on scan — When a brand-new liked video is discovered during
-//      a scan (i.e. it wasn't in the DB yet), DatabaseService assigns it
-//      MAX(liked_order)+1 automatically. Since a video is only "new" if it
-//      just appeared in the liked playlist, this is a safe assumption for
-//      ordering: recent discoveries go last.
-//
-// txt file format (one entry per line, space-separated):
-//   <serial>  <youtube_id>
-// Example:
-//   1 w28ZREQe3_Q
-//   2 EO3XKf08aNU
-//
-// NULLs
-// -----
-// Videos where liked_order IS NULL are sorted last in the UI (NULLS LAST).
-// This covers: non-liked videos (where liked_order is always NULL), and liked
-// videos added before the user ran the import on a fresh database.
-
+import { Prisma } from '@prisma/client';
 import { getPrismaClient } from '../lib/database.js';
 
-export interface LikedOrderImportResult {
-  /** Total non-empty lines parsed from the uploaded file */
-  total: number;
-  /** Lines that matched a video in the DB and were updated */
-  updated: number;
-  /** Lines where the YouTube ID was not found in the DB */
-  notFound: number;
-}
+export const VIDEO_ID = /^[A-Za-z0-9_-]{11}$/;
+export interface LikedOrderImportResult { total: number; updated: number; notFound: number }
+export interface LikedOrderStatus { totalLiked: number; withOrder: number; isImported: boolean }
 
-export interface LikedOrderStatus {
-  /** Total liked_videos in DB (excluding missing_on_disk) */
-  totalLiked: number;
-  /** How many of those have a liked_order value */
-  withOrder: number;
-  /** True if at least one liked video has a liked_order */
-  isImported: boolean;
-}
-
+// Membership survives index rebuilds and can precede a local media file.
 export class LikedVideoOrderService {
-  private prisma = getPrismaClient();
+  private get prisma() { return getPrismaClient(); }
 
-  /**
-   * Parse the uploaded txt file content and update liked_order for each
-   * matching video in the database.
-   *
-   * Lines that don't match the expected format or whose YouTube ID doesn't
-   * exist in the DB as a liked_video are silently counted as notFound.
-   *
-   * This is designed to be idempotent — running it multiple times with the
-   * same file is safe; it just overwrites liked_order with the same values.
-   */
-  async importFromText(content: string): Promise<LikedOrderImportResult> {
-    const lines = content
-      .split('\n')
-      .map((l) => l.trim())
-      .filter((l) => l.length > 0);
-
-    let updated = 0;
-    let notFound = 0;
-
-    for (const line of lines) {
-      // Split on any whitespace — handles spaces and tabs
-      const parts = line.split(/\s+/);
-      if (parts.length < 2) {
-        notFound++;
-        continue;
-      }
-
-      const serial = parseInt(parts[0], 10);
-      const videoId = parts[1];
-
-      if (isNaN(serial) || !videoId) {
-        notFound++;
-        continue;
-      }
-
-      // Only update rows that exist as liked_videos. Using updateMany so we
-      // get a count back without throwing if the video isn't in the DB.
-      const result = await this.prisma.video.updateMany({
-        where: { videoId, mediaType: 'liked_videos' },
-        data: { likedOrder: serial },
-      });
-
-      if (result.count > 0) {
-        updated++;
-      } else {
-        notFound++;
-      }
-    }
-
-    return { total: lines.length, updated, notFound };
+  async record(videoId: string): Promise<void> {
+    if (!VIDEO_ID.test(videoId)) throw new Error('Invalid YouTube video ID');
+    await this.prisma.$executeRaw`
+      INSERT OR IGNORE INTO liked_video (video_id, liked_order, first_seen_at)
+      VALUES (${videoId}, (SELECT COALESCE(MAX(liked_order), 0) + 1 FROM liked_video), ${new Date().toISOString()})`;
   }
 
-  /**
-   * Return a summary of how many liked videos have an order assigned.
-   * Used by the Config page to show whether the import has been done.
-   */
-  async getStatus(): Promise<LikedOrderStatus> {
-    const [totalLiked, withOrder] = await Promise.all([
-      this.prisma.video.count({
-        where: { mediaType: 'liked_videos', missingOnDisk: false },
-      }),
-      this.prisma.video.count({
-        where: {
-          mediaType: 'liked_videos',
-          missingOnDisk: false,
-          likedOrder: { not: null },
-        },
-      }),
-    ]);
+  async has(videoId: string): Promise<boolean> {
+    return !!await this.prisma.likedVideo.findUnique({ where: { videoId } });
+  }
 
-    return {
-      totalLiked,
-      withOrder,
-      isImported: withOrder > 0,
-    };
+  async applySnapshot(oldestFirst: string[]): Promise<void> {
+    const ids = [...new Set(oldestFirst)];
+    if (ids.some(id => !VIDEO_ID.test(id))) throw new Error('Invalid Liked snapshot');
+    await this.prisma.$transaction(async tx => {
+      const previous = await tx.likedVideo.findMany({
+        orderBy: [{ likedOrder: { sort: 'asc', nulls: 'last' } }, { videoId: 'asc' }],
+      });
+      const current = new Set(ids);
+      const combined = [...previous.filter(v => !current.has(v.videoId)).map(v => v.videoId), ...ids];
+      for (let i = 0; i < combined.length; i++) {
+        await tx.likedVideo.upsert({ where: { videoId: combined[i] },
+          create: { videoId: combined[i], likedOrder: i + 1, firstSeenAt: new Date().toISOString() },
+          update: { likedOrder: i + 1 } });
+      }
+    }, { timeout: 60_000 });
+  }
+
+  async importFromText(content: string): Promise<LikedOrderImportResult> {
+    const lines = content.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+    const result = { total: lines.length, updated: 0, notFound: 0 };
+    await this.prisma.$transaction(async tx => {
+      for (const line of lines) {
+        const match = /^(\d+)\s+([A-Za-z0-9_-]{11})$/.exec(line);
+        if (!match || !Number.isSafeInteger(Number(match[1])) || Number(match[1]) < 1) {
+          result.notFound++; continue;
+        }
+        await tx.likedVideo.upsert({ where: { videoId: match[2] },
+          create: { videoId: match[2], likedOrder: Number(match[1]), firstSeenAt: new Date().toISOString() },
+          update: { likedOrder: Number(match[1]) } });
+        result.updated++;
+      }
+    }, { timeout: 60_000 });
+    return result;
+  }
+
+  async getStatus(): Promise<LikedOrderStatus> {
+    const [row] = await this.prisma.$queryRaw<{ total: bigint; ordered: bigint | null }[]>`
+      SELECT COUNT(*) AS total, SUM(l.liked_order IS NOT NULL) AS ordered
+      FROM liked_video l JOIN video v ON v.video_id = l.video_id WHERE v.missing_on_disk = false`;
+    const totalLiked = Number(row.total), withOrder = Number(row.ordered ?? 0);
+    return { totalLiked, withOrder, isImported: withOrder > 0 };
+  }
+
+  async list(options: { limit: number; skip?: number; order?: 'asc' | 'desc'; exclude?: string;
+    byUpload?: boolean; before?: string; after?: string }) {
+    const direction = options.order === 'asc' ? Prisma.sql`ASC` : Prisma.sql`DESC`;
+    const sort = options.byUpload ? Prisma.sql`v.upload_date` : Prisma.sql`l.liked_order`;
+    const rows = await this.prisma.$queryRaw<Array<{
+      videoId: string; title: string; uploader: string | null; uploaderId: string | null;
+      uploadDate: string | null; durationSeconds: number | null; thumbnailPath: string | null;
+      hasThumbnails: boolean; thumbnailSource: string | null; resolution: string | null;
+      mediaType: string; filesizeBytes: bigint | null; likedOrder: number | null;
+    }>>(Prisma.sql`
+      SELECT v.video_id AS videoId, v.title, v.uploader, v.uploader_id AS uploaderId,
+        v.upload_date AS uploadDate, v.duration_seconds AS durationSeconds,
+        v.thumbnail_path AS thumbnailPath, v.has_thumbnails AS hasThumbnails,
+        v.thumbnail_source AS thumbnailSource, v.resolution, v.media_type AS mediaType,
+        v.filesize_bytes AS filesizeBytes, l.liked_order AS likedOrder
+      FROM liked_video l JOIN video v ON v.video_id = l.video_id
+      WHERE v.missing_on_disk = false
+        ${options.exclude ? Prisma.sql`AND v.video_id <> ${options.exclude}` : Prisma.empty}
+        ${options.before !== undefined ? Prisma.sql`AND v.upload_date < ${options.before}` : Prisma.empty}
+        ${options.after !== undefined ? Prisma.sql`AND v.upload_date > ${options.after}` : Prisma.empty}
+      ORDER BY ${sort} IS NULL, ${sort} ${direction}, v.video_id ${direction}
+      LIMIT ${options.limit} OFFSET ${options.skip ?? 0}`);
+    return rows.map(v => ({ ...v, filesizeBytes: v.filesizeBytes === null ? null : Number(v.filesizeBytes) }));
   }
 }

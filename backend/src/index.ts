@@ -10,6 +10,8 @@ import { fileURLToPath } from "url";
 import { existsSync } from "fs";
 
 // Import routes
+import downloadRoutes from "./routes/downloads.js";
+import { downloadService, downloadsEnabled } from "./services/download-service.js";
 import scanRoutes from "./routes/scan.js";
 import configRoutes from "./routes/config.js";
 import videoRoutes from "./routes/videos.js";
@@ -65,12 +67,23 @@ await fastify.register(metadataRoutes, { prefix: "/api/metadata" });
 await fastify.register(dangerRoutes, { prefix: "/api/danger" });
 await fastify.register(searchRoutes, { prefix: "/api/search" });
 
+// The downloader is optional and isolated: disabled or failing, everything else keeps working.
+if (downloadsEnabled()) {
+	await fastify.register(downloadRoutes, { prefix: "/api/downloads" });
+} else {
+	await fastify.register(async (app) => {
+		app.all("/*", async (_request, reply) =>
+			reply.code(503).send({ error: "Downloader is disabled (DOWNLOADS_ENABLED=false)" }));
+	}, { prefix: "/api/downloads" });
+}
+
 // Health check
 fastify.get("/api/health", async (request, reply) => {
 	return {
 		status: "ok",
 		message: "YUI Backend is running!",
 		timestamp: new Date().toISOString(),
+		downloadsEnabled: downloadsEnabled(),
 	};
 });
 
@@ -129,7 +142,10 @@ fastify.setNotFoundHandler((request, reply) => {
 	}
 });
 
-fastify.addHook("onClose", async () => { await scanScheduler.stop(); });
+fastify.addHook("onClose", async () => {
+	await scanScheduler.stop();
+	try { await downloadService.stop(); } catch (error) { fastify.log.error(error, "Downloader did not stop cleanly"); }
+});
 
 for (const signal of ["SIGINT", "SIGTERM"] as const) {
 	process.once(signal, () => { void fastify.close().then(() => process.exit(0)); });
@@ -141,6 +157,14 @@ const start = async () => {
 		const migrationService = new MigrationService();
 		await migrationService.runMigrations();
 
+		if (downloadsEnabled()) {
+			try {
+				await downloadService.start();
+			} catch (error) {
+				downloadService.unavailableReason = error instanceof Error ? error.message : String(error);
+				fastify.log.error(error, "Downloader failed to start; the rest of the app continues without it");
+			}
+		}
 		await scanScheduler.start();
 
 		await fastify.listen({

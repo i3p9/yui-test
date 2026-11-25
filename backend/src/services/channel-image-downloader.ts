@@ -3,8 +3,7 @@
 // ============================================
 // Downloads channel avatars and banners via yt-dlp.
 
-import { execFile } from "child_process";
-import { promisify } from "util";
+import { runYtDlp } from "./yt-dlp-runner.js";
 import {
 	access,
 	copyFile,
@@ -21,7 +20,7 @@ import { getPrismaClient } from "../lib/database.js";
 import { loadConfig } from "../lib/config.js";
 import { channelImageState } from "../lib/channel-image-state.js";
 
-const execFileAsync = promisify(execFile);
+
 const MIN_VIDEO_COUNT = 5;
 
 interface ChannelImageRecord {
@@ -207,8 +206,7 @@ export class ChannelImageDownloader {
 
 		try {
 			try {
-				await execFileAsync(
-					"yt-dlp",
+				const result = await runYtDlp(
 					[
 						"--playlist-items",
 						"0",
@@ -218,13 +216,14 @@ export class ChannelImageDownloader {
 					],
 					{
 						cwd: tempDir,
-						maxBuffer: 10 * 1024 * 1024,
+						timeoutMs: 10 * 60_000,
 					}
 				);
+				if (result.exitCode !== 0 || result.error) throw new Error(result.error || "yt-dlp failed");
 			} catch (error: any) {
 				const stderr = this.compactOutput(error?.stderr);
 				const stdout = this.compactOutput(error?.stdout);
-				const details = stderr || stdout;
+				const details = stderr || stdout || this.compactOutput(error?.message);
 				return {
 					error: details
 						? `yt-dlp failed for ${channel.uploaderId}: ${details}`

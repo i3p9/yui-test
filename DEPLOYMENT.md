@@ -25,7 +25,7 @@ services:
 
 - Left side (`/actual/path/...`): Your real filesystem path on the host
 - Right side (`/media/...`): Container path (you'll use this in the UI)
-- `:ro` makes video libraries read-only (recommended for safety)
+- `:ro` makes scan-only libraries read-only. Remove it for intended downloader destinations.
 
 ### 2. Build and Run
 
@@ -349,3 +349,14 @@ For issues or questions:
 - Check logs: `docker compose logs -f yui`
 - Review this guide
 - Check the main README.md
+
+## Integrated downloader
+
+Use writable, existing destination mounts for Downloads. State persists in the config
+directory under `.downloads`; back it up alongside SQLite. Follow the
+[Downloads setup and NAS cutover guide](docs/feature/downloader/README.md) before
+switching off external cron and enabling the optional 24-hour schedule.
+
+The downloader is isolated from the rest of the app. If it fails to start, the app
+still starts and only `/api/downloads` reports `503`. To turn it off entirely, set
+`DOWNLOADS_ENABLED=false` in the container environment and restart.

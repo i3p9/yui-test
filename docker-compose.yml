@@ -3,6 +3,8 @@ services:
     build: .
     container_name: yui
     restart: unless-stopped
+    init: true
+    stop_grace_period: 30s
     ports:
       - "3001:3001"
     volumes:
@@ -20,7 +22,8 @@ services:
       # Matches metadataDir in config.json
       - ./metadata:/app/.metadata
 
-      # Video libraries (read-only - UPDATE THESE PATHS!)
+      # Video libraries. Read-only is safest for browsing/scanning; downloads into a
+      # read-only library fail cleanly. Remove :ro once you want YUI to download there.
       # Map your actual video library paths to /media inside the container
       # Then update config.json libraries to point to /media/...
       # Example:
@@ -32,6 +35,9 @@ services:
       - NODE_ENV=production
       - CONFIG_PATH=/config/config.json
       - DATABASE_URL=file:/data/yui.db
+      # Optional: turn the downloader off entirely (worker, schedule, and /api/downloads).
+      # Browsing, scanning, search, and playback are unaffected either way.
+      # - DOWNLOADS_ENABLED=false
       # Optional: Increase Node.js memory if scanning large libraries
       # - NODE_OPTIONS=--max-old-space-size=4096
 
@@ -44,4 +50,4 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 15s
+      start_period: 60s

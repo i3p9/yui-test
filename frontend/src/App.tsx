@@ -6,6 +6,7 @@ import { ChannelsPage } from './pages/ChannelsPage'
 import { ChannelVideosPage } from './pages/ChannelVideosPage'
 import { LikedVideosPage } from './pages/LikedVideosPage'
 import { WatchPage } from './pages/WatchPage'
+import { DownloadsPage } from './pages/DownloadsPage'
 import { ConfigurePage } from './pages/ConfigurePage'
 import { SearchPage } from './pages/SearchPage'
 import { LoginPage } from './pages/LoginPage'
@@ -108,6 +109,7 @@ function App() {
                   <Route path="/liked" element={<LikedVideosPage />} />
                   <Route path="/search" element={<SearchPage />} />
                   <Route path="/watch/:videoId" element={<WatchPage />} />
+                  <Route path="/downloads" element={<DownloadsPage />} />
                   <Route path="/configure" element={<ConfigurePage />} />
                 </Routes>
               </Layout>

@@ -111,6 +111,7 @@ async function readChannelOverrides(
 export class Scanner {
 	// Channel images found during the last walkLibrary call
 	private _channelImages: ChannelImageCandidate[] = [];
+	private _traversalErrors: string[] = [];
 
 	/**
 	 * Walk a library directory and yield video candidates.
@@ -122,6 +123,7 @@ export class Scanner {
 	): AsyncGenerator<VideoCandidate> {
 		const normalizedRootPath = resolve(rootPath);
 		this._channelImages = [];
+		this._traversalErrors = [];
 
 		// Stack stores [path, overrides] tuples
 		const stack: Array<[string, ChannelOverrides | null]> = [
@@ -136,7 +138,11 @@ export class Scanner {
 			try {
 				entries = await readdir(currentPath, { withFileTypes: true });
 			} catch (error) {
-				console.error(`Cannot read directory ${currentPath}:`, error);
+				// Keep walking so readable videos are still indexed, but record the
+				// failure: an incomplete walk must not mark unseen videos missing.
+				const message = `Cannot read directory ${currentPath}: ${error}`;
+				console.error(message);
+				this._traversalErrors.push(message);
 				continue;
 			}
 
@@ -231,6 +237,11 @@ export class Scanner {
 	 */
 	getCollectedChannelImages(): ChannelImageCandidate[] {
 		return this._channelImages;
+	}
+
+	/** Directories the last walk could not read. Non-empty means the walk was incomplete. */
+	getTraversalErrors(): string[] {
+		return this._traversalErrors;
 	}
 
 	/**
