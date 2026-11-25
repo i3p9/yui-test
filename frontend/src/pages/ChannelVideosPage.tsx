@@ -1,8 +1,11 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
-import { getChannelAvatarUrl, getChannelBannerUrl, getChannelVideos } from '../lib/api'
-import { VideoGrid } from '../components/VideoGrid'
+import { getChannelBannerUrl, getChannelVideos } from '../lib/api'
+import { VideoGrid, FeedFooter } from '../components/VideoGrid'
+import { ChannelAvatar } from '../components/ChannelCard'
+import { Page, PageHeader, Spinner, ErrorBanner, Select } from '../components/ui'
 import { useInfiniteScroll } from '../hooks/useInfiniteScroll'
+import { useDocumentTitle } from '../hooks/useDocumentTitle'
 import type { Channel } from '../types'
 
 interface Video {
@@ -48,125 +51,55 @@ export function ChannelVideosPage() {
     }
   }
 
+  useDocumentTitle(channel?.name)
+
   const sentinelRef = useInfiniteScroll(
     () => setPage((p) => p + 1),
     !loading && hasMore
   )
 
-  if (loading && !channel) {
-    return (
-      <div className="p-8">
-        <div className="flex items-center justify-center py-20">
-          <div className="text-center">
-            <div className="inline-block w-16 h-16 border-4 border-red-600 border-t-transparent rounded-full animate-spin mb-4" />
-            <p className="text-zinc-400 font-bold">LOADING...</p>
-          </div>
-        </div>
-      </div>
-    )
-  }
-
   if (error) {
-    return (
-      <div className="p-8">
-        <div className="bg-red-950 border-2 border-red-600 p-6">
-          <p className="text-red-400 font-bold">ERROR: {error}</p>
-        </div>
-      </div>
-    )
+    return <Page><ErrorBanner onRetry={loadVideos}>{error}</ErrorBanner></Page>
   }
 
-  if (!channel) return null
+  if (!channel) return <Page><Spinner label="Loading" /></Page>
 
   return (
-    <div className="p-8">
+    <Page>
       {channel.bannerPath && (
-        <div className="relative mb-8 aspect-[4/1] overflow-hidden border-4 border-zinc-900 bg-zinc-950 shadow-[10px_10px_0_0_#09090b]">
+        <div className="mb-4 aspect-[6/1] overflow-hidden border-2 border-zinc-800 bg-zinc-950">
           <img
             src={getChannelBannerUrl(channel.uploaderId)}
-            alt={`${channel.name} banner`}
+            alt=""
             className="h-full w-full object-cover"
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
         </div>
       )}
 
-      {/* Channel Header */}
-      <div className="mb-8">
-        <div className="flex items-start justify-between mb-4">
-          <div className="flex items-start gap-4">
-            <div className="flex h-20 w-20 items-center justify-center overflow-hidden rounded-full border-4 border-zinc-800 bg-zinc-900">
-              {channel.avatarPath || channel.thumbnailPath ? (
-                <img
-                  src={getChannelAvatarUrl(channel.uploaderId)}
-                  alt={channel.name}
-                  className="h-full w-full object-cover"
-                />
-              ) : (
-                <svg
-                  className="h-10 w-10 text-zinc-600"
-                  fill="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z" />
-                </svg>
-              )}
-            </div>
+      <PageHeader
+        icon={<ChannelAvatar channelId={channel.uploaderId} hasImage={!!(channel.avatarPath || channel.thumbnailPath)} className="h-9 w-9 md:h-10 md:w-10" />}
+        title={<span className="normal-case">{channel.name}</span>}
+        meta={`${channel.videoCount} videos`}
+        actions={
+          <Select
+            aria-label="Sort videos"
+            className="w-auto"
+            value={sort}
+            onChange={(e) => {
+              setSort(e.target.value)
+              setPage(1) // reset to page 1 — loadVideos will replace the list
+            }}
+          >
+            <option value="uploadDate">Latest</option>
+            <option value="title">Title</option>
+            <option value="durationSeconds">Duration</option>
+          </Select>
+        }
+      />
 
-            <div>
-              <h1 className="text-4xl font-black tracking-tight mb-2">{channel.name}</h1>
-              <div className="h-1 w-24 bg-red-600" />
-              <p className="text-zinc-500 text-sm mt-2 font-mono">{channel.videoCount} videos</p>
-            </div>
-          </div>
-
-          {/* Sort Dropdown */}
-          <div className="flex items-center gap-2">
-            <span className="text-xs text-zinc-500 font-bold">SORT:</span>
-            <select
-              value={sort}
-              onChange={(e) => {
-                setSort(e.target.value)
-                setPage(1) // reset to page 1 — loadVideos will replace the list
-              }}
-              className="bg-zinc-900 border-2 border-zinc-800 px-4 py-2 text-sm font-bold focus:border-red-600 outline-none"
-            >
-              <option value="uploadDate">LATEST</option>
-              <option value="title">TITLE</option>
-              <option value="durationSeconds">DURATION</option>
-            </select>
-          </div>
-        </div>
-      </div>
-
-      {/* Video Grid — show skeleton/spinner only on initial channel load */}
-      {loading && videos.length === 0 ? (
-        <div className="flex items-center justify-center py-20">
-          <div className="text-center">
-            <div className="inline-block w-16 h-16 border-4 border-red-600 border-t-transparent rounded-full animate-spin mb-4" />
-            <p className="text-zinc-400 font-bold">LOADING...</p>
-          </div>
-        </div>
-      ) : (
-        <VideoGrid videos={videos} />
-      )}
-
-      {/* Sentinel — observed by IntersectionObserver to trigger next page load */}
+      <VideoGrid videos={videos} loading={loading} hideChannel />
       <div ref={sentinelRef} />
-
-      {/* Loading spinner for subsequent pages */}
-      {loading && videos.length > 0 && (
-        <div className="flex justify-center py-12">
-          <div className="inline-block w-10 h-10 border-4 border-red-600 border-t-transparent rounded-full animate-spin" />
-        </div>
-      )}
-
-      {/* End of list */}
-      {!hasMore && videos.length > 0 && (
-        <p className="text-center text-xs font-mono text-zinc-700 py-12 tracking-widest uppercase">
-          — End —
-        </p>
-      )}
-    </div>
+      <FeedFooter loading={loading} hasMore={hasMore} count={videos.length} />
+    </Page>
   )
 }
