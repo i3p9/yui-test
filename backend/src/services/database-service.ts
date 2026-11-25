@@ -3,6 +3,7 @@
 // ============================================
 // Handles all database operations for scanning
 
+import { access } from "fs/promises";
 import { getPrismaClient } from "../lib/database.js";
 import type {
 	ParsedMetadata,
@@ -12,9 +13,37 @@ import type {
 import { LikedVideoOrderService } from "./liked-video-order-service.js";
 import { SearchService } from "./search-service.js";
 
+/** What an incremental scan needs to know about an indexed video. */
+export interface KnownVideo {
+	videoPath: string;
+	mediaMtime: string | null;
+	infoJsonMtime: string | null;
+	filesizeBytes: bigint | null;
+	uploaderId: string | null;
+}
+
 export class DatabaseService {
 	private prisma = getPrismaClient();
 	private searchService = new SearchService();
+
+	/** One query for the whole index, so incremental scans don't look rows up one by one. */
+	async getScanIndex(): Promise<Map<string, KnownVideo>> {
+		const rows = await this.prisma.video.findMany({
+			select: { videoId: true, videoPath: true, mediaMtime: true, infoJsonMtime: true, filesizeBytes: true, uploaderId: true },
+		});
+		return new Map(rows.map(({ videoId, ...known }) => [videoId, known]));
+	}
+
+	/** Bulk "seen this scan" for videos an incremental scan didn't need to rewrite. */
+	async touchVideos(videoIds: string[]): Promise<void> {
+		const now = new Date().toISOString();
+		for (let i = 0; i < videoIds.length; i += 500) {
+			await this.prisma.video.updateMany({
+				where: { videoId: { in: videoIds.slice(i, i + 500) } },
+				data: { lastScannedAt: now, missingOnDisk: false },
+			});
+		}
+	}
 
 	/**
 	 * Upsert a video (insert or update)
@@ -105,7 +134,15 @@ export class DatabaseService {
 		existing: any,
 		newMetadata: ParsedMetadata
 	): Promise<boolean> {
-		// Check if metadata changed (info.json or media file modified)
+		// A second copy of the same video (e.g. in both Channels and Liked). Comparing
+		// mtimes across different files made the row flip between copies every scan,
+		// so keep the indexed copy unless the new one is bigger or the old one is gone.
+		if (existing.videoPath !== newMetadata.videoPath) {
+			if (BigInt(newMetadata.filesizeBytes ?? 0) > BigInt(existing.filesizeBytes ?? 0)) return true;
+			return !(await access(existing.videoPath).then(() => true, () => false));
+		}
+
+		// Same file: check if metadata changed (info.json or media file modified)
 		const infoChanged =
 			existing.infoJsonMtime &&
 			newMetadata.infoJsonMtime &&

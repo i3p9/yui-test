@@ -3,7 +3,7 @@
 // ============================================
 // Extracts metadata from info.json and filenames
 
-import { readFile, stat } from "fs/promises";
+import { access, readFile, stat } from "fs/promises";
 import { join, basename } from "path";
 import type {
 	VideoCandidate,
@@ -19,6 +19,7 @@ import {
 	isSubtitleFile,
 	isThumbnailFile,
 } from "./scanner.js";
+import type { KnownVideo } from "./database-service.js";
 
 export class MetadataParser {
 	async parseCandidate(
@@ -100,7 +101,36 @@ export class MetadataParser {
 		}
 	}
 
-	private findVideoId(candidate: VideoCandidate): string | null {
+	/**
+	 * Incremental fast path: true when the indexed row is still current, judged from
+	 * file stats only. Skips reading info.json (often ~500 KB each), which is what
+	 * makes scans slow on spinning disks.
+	 */
+	async isUnchanged(candidate: VideoCandidate, known: KnownVideo): Promise<boolean> {
+		try {
+			const mediaFile = candidate.files.find(isMediaFile);
+			if (!mediaFile) return false;
+			const videoPath = join(candidate.path, mediaFile);
+			const infoFile = candidate.files.find((f) => f.endsWith(".info.json"));
+			const [media, info] = await Promise.all([
+				stat(videoPath),
+				infoFile ? stat(join(candidate.path, infoFile)) : null,
+			]);
+
+			// Another copy of an indexed video: nothing to do unless it is bigger or
+			// the indexed file disappeared (same rule as DatabaseService.shouldReplaceVideo).
+			if (videoPath !== known.videoPath) {
+				return BigInt(media.size) <= (known.filesizeBytes ?? 0n)
+					&& await access(known.videoPath).then(() => true, () => false);
+			}
+			return media.mtime.toISOString() === known.mediaMtime
+				&& (info?.mtime.toISOString() ?? null) === (known.infoJsonMtime ?? null);
+		} catch {
+			return false; // let the full parse report the problem
+		}
+	}
+
+	findVideoId(candidate: VideoCandidate): string | null {
 		// If already provided (loose files)
 		if (candidate.videoId) return candidate.videoId;
 

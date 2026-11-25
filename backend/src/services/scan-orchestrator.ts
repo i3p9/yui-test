@@ -59,6 +59,11 @@ export class ScanOrchestrator {
 		const seenVideoIds = new Set<string>();
 		const seenUploaderIds = new Set<string>();
 		const scannedLibraryPaths = new Set<string>();
+		// Incremental scans compare file stats against the index and only parse what
+		// changed; full scans re-read every info.json.
+		const known = mode === "incremental" ? await this.db.getScanIndex() : null;
+		const unchangedIds: string[] = [];
+		const changedIds = new Set<string>();
 
 		try {
 			for (const library of librariesToScan) {
@@ -91,9 +96,14 @@ export class ScanOrchestrator {
 
 						// Parallel parse (file I/O is safe to parallelize)
 						const parseResults = await Promise.allSettled(
-							batch.map((candidate) =>
-								this.parser.parseCandidate(candidate, library)
-							)
+							batch.map(async (candidate) => {
+								const id = known && this.parser.findVideoId(candidate);
+								const indexed = id ? known!.get(id) : undefined;
+								if (id && indexed && await this.parser.isUnchanged(candidate, indexed)) {
+									return { unchangedId: id, uploaderId: indexed.uploaderId };
+								}
+								return this.parser.parseCandidate(candidate, library);
+							})
 						);
 
 						// Sequential DB writes
@@ -103,8 +113,16 @@ export class ScanOrchestrator {
 								continue;
 							}
 
-							const metadata = settled.value;
-							if (!metadata) continue;
+							const value = settled.value;
+							if (!value) continue;
+							if ("unchangedId" in value) {
+								seenVideoIds.add(value.unchangedId);
+								if (value.uploaderId) seenUploaderIds.add(value.uploaderId);
+								unchangedIds.push(value.unchangedId);
+								stats.videosScanned++;
+								continue;
+							}
+							const metadata = value;
 
 							try {
 								const result = await this.db.upsertVideo(
@@ -119,6 +137,7 @@ export class ScanOrchestrator {
 								stats.videosScanned++;
 								if (result === 'added') stats.videosAdded++;
 								else if (result === 'updated') stats.videosUpdated++;
+								if (result !== 'skipped') changedIds.add(metadata.videoId);
 							} catch (error) {
 								stats.errors.push(`DB error for ${metadata.videoId}: ${error}`);
 							}
@@ -137,22 +156,21 @@ export class ScanOrchestrator {
 					}
 
 					console.log(`Processed ${candidates.length} candidates (${stats.videosAdded} new, ${stats.videosUpdated} updated)`);
-
-					// Update channel stats
-					for (const uploaderId of seenUploaderIds) {
-						try {
-							await this.db.updateChannelStats(uploaderId, { skipFtsSync: true });
-						} catch (error) {
-							console.error(
-								`Failed to update channel stats for ${uploaderId}:`,
-								error
-							);
-						}
-					}
 				} catch (error) {
 					const msg = `Error scanning library ${library.name}: ${error}`;
 					console.error(msg);
 					stats.errors.push(msg);
+				}
+			}
+
+			await this.db.touchVideos(unchangedIds);
+
+			// Update channel stats once, after every library has been walked
+			for (const uploaderId of seenUploaderIds) {
+				try {
+					await this.db.updateChannelStats(uploaderId, { skipFtsSync: true });
+				} catch (error) {
+					console.error(`Failed to update channel stats for ${uploaderId}:`, error);
 				}
 			}
 
@@ -171,7 +189,9 @@ export class ScanOrchestrator {
 
 			// PHASE 2: Generate thumbnails if enabled
 			if (config.scanOptions.generateThumbnails) {
-				await this.generateThumbnails(config, options?.libraryPath);
+				// Incremental: only new/changed videos. Full: also retry earlier failures,
+				// which otherwise cost two ffmpeg runs each on every scan.
+				await this.generateThumbnails(config, options?.libraryPath, known ? changedIds : undefined);
 			}
 
 			// PHASE 3: Fetch metadata if enabled
@@ -221,7 +241,8 @@ export class ScanOrchestrator {
 	 */
 	private async generateThumbnails(
 		config: any,
-		libraryPath?: string
+		libraryPath?: string,
+		onlyIds?: Set<string>
 	): Promise<void> {
 		console.log(`\n${"=".repeat(60)}`);
 		console.log("PHASE 2: Generating Thumbnails");
@@ -233,7 +254,7 @@ export class ScanOrchestrator {
 		const prisma = (this.db as any).prisma;
 
 		// Get all videos that need thumbnails
-		const videos = (await prisma.video.findMany({
+		const missing = (await prisma.video.findMany({
 			where: {
 				missingOnDisk: false,
 				hasThumbnails: false,
@@ -251,6 +272,7 @@ export class ScanOrchestrator {
 			thumbnailPath: string | null;
 			durationSeconds: number | null;
 		}>;
+		const videos = onlyIds ? missing.filter((v) => onlyIds.has(v.videoId)) : missing;
 
 		if (videos.length === 0) {
 			console.log(
