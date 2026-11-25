@@ -117,7 +117,8 @@ test("scan scheduling API and pipeline integration with isolated config and data
 			orchestrator.db = {
 				createScanLog: async () => 1,
 				getScanIndex: async () => new Map(),
-				touchVideos: async () => {},
+				unmarkMissing: async () => {},
+				syncChannelStats: async () => 0,
 				markMissingVideos: async (_seen: Set<string>, path: string) => { reconciled.push(path); return 0; },
 				rebuildFtsIndexes: async () => {},
 				completeScanLog: async () => {},

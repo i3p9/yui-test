@@ -2,7 +2,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { execFileSync } from 'node:child_process';
-import { mkdtemp, mkdir, writeFile, rm, utimes } from 'node:fs/promises';
+import { mkdtemp, mkdir, writeFile, rm, utimes, rename } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { clearConfigCache, loadConfig } from '../src/lib/config.js';
@@ -55,7 +55,8 @@ test('incremental scan skips unchanged files but catches edits, additions, remov
     await utimes(info, new Date(), new Date(Date.now() + 5000));
     // New video, deleted video, and a bigger copy of the duplicate.
     await addVideo(join(channels, 'Chan'), 'ddddddddddd');
-    await rm(removed, { recursive: true });
+    const parked = join(dir, 'parked');
+    await rename(removed, parked); // moved out of the library; timestamps preserved
     await addVideo(liked, 'ccccccccccc', { size: 500 });
 
     const changed = await scan();
@@ -65,9 +66,20 @@ test('incremental scan skips unchanged files but catches edits, additions, remov
     assert.equal((await prisma.video.findUniqueOrThrow({ where: { videoId: 'aaaaaaaaaaa' } })).title, 'Renamed');
     assert.match((await prisma.video.findUniqueOrThrow({ where: { videoId: 'ccccccccccc' } })).videoPath, /liked/);
 
+    // Channel count reflects the removal (aaa, ccc, ddd remain).
+    assert.equal((await prisma.channel.findUniqueOrThrow({ where: { uploaderId: 'UC0000000000000000000001' } })).videoCount, 3);
+
+    // Moved back unchanged: un-marked via the fast path without being re-read.
+    await rename(parked, removed);
+    const back = await scan();
+    assert.deepEqual([back.videosAdded, back.videosUpdated, back.videosRemoved], [0, 0, 0]);
+    assert.equal((await prisma.video.findUniqueOrThrow({ where: { videoId: 'bbbbbbbbbbb' } })).missingOnDisk, false);
+    assert.equal((await prisma.channel.findUniqueOrThrow({ where: { uploaderId: 'UC0000000000000000000001' } })).videoCount, 4);
+    await rename(removed, parked);
+
     const settled = await scan();
     assert.deepEqual([settled.videosAdded, settled.videosUpdated], [0, 0]);
-    // videosRemoved reports videos currently missing (cumulative), so check the row instead.
+    assert.equal(settled.videosRemoved, 1); // newly missing in this scan
     assert.equal((await prisma.video.findUniqueOrThrow({ where: { videoId: 'bbbbbbbbbbb' } })).missingOnDisk, true);
     assert.equal(await prisma.video.count({ where: { missingOnDisk: false } }), 3);
   } finally {

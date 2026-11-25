@@ -57,12 +57,11 @@ export class ScanOrchestrator {
 		};
 
 		const seenVideoIds = new Set<string>();
-		const seenUploaderIds = new Set<string>();
 		const scannedLibraryPaths = new Set<string>();
 		// Incremental scans compare file stats against the index and only parse what
 		// changed; full scans re-read every info.json.
 		const known = mode === "incremental" ? await this.db.getScanIndex() : null;
-		const unchangedIds: string[] = [];
+		const reappearedIds: string[] = []; // unchanged videos previously marked missing
 		const changedIds = new Set<string>();
 
 		try {
@@ -100,7 +99,7 @@ export class ScanOrchestrator {
 								const id = known && this.parser.findVideoId(candidate);
 								const indexed = id ? known!.get(id) : undefined;
 								if (id && indexed && await this.parser.isUnchanged(candidate, indexed)) {
-									return { unchangedId: id, uploaderId: indexed.uploaderId };
+									return { unchangedId: id, wasMissing: indexed.missingOnDisk };
 								}
 								return this.parser.parseCandidate(candidate, library);
 							})
@@ -117,8 +116,7 @@ export class ScanOrchestrator {
 							if (!value) continue;
 							if ("unchangedId" in value) {
 								seenVideoIds.add(value.unchangedId);
-								if (value.uploaderId) seenUploaderIds.add(value.uploaderId);
-								unchangedIds.push(value.unchangedId);
+								if (value.wasMissing) reappearedIds.push(value.unchangedId);
 								stats.videosScanned++;
 								continue;
 							}
@@ -131,9 +129,6 @@ export class ScanOrchestrator {
 									{ skipFtsSync: true }
 								);
 								seenVideoIds.add(metadata.videoId);
-								if (metadata.uploaderId) {
-									seenUploaderIds.add(metadata.uploaderId);
-								}
 								stats.videosScanned++;
 								if (result === 'added') stats.videosAdded++;
 								else if (result === 'updated') stats.videosUpdated++;
@@ -163,19 +158,7 @@ export class ScanOrchestrator {
 				}
 			}
 
-			await this.db.touchVideos(unchangedIds);
-
-			// Update channel stats once, after every library has been walked
-			for (const uploaderId of seenUploaderIds) {
-				try {
-					await this.db.updateChannelStats(uploaderId, { skipFtsSync: true });
-				} catch (error) {
-					console.error(`Failed to update channel stats for ${uploaderId}:`, error);
-				}
-			}
-
-			// Process channel images collected during the walk (no second traversal)
-			await this.processChannelImages();
+			await this.db.unmarkMissing(reappearedIds);
 
 			// Mark videos as missing if they weren't seen
 			// Only reconcile libraries visited by this scan. Skipped or removed
@@ -183,6 +166,16 @@ export class ScanOrchestrator {
 			for (const libraryPath of scannedLibraryPaths) {
 				stats.videosRemoved += await this.db.markMissingVideos(seenVideoIds, libraryPath);
 			}
+
+			// Channel stats once, after missing videos are marked so counts are current
+			try {
+				await this.db.syncChannelStats();
+			} catch (error) {
+				console.error("Failed to update channel stats:", error);
+			}
+
+			// Process channel images collected during the walk (no second traversal)
+			await this.processChannelImages();
 
 			// Rebuild FTS indexes once (replaces per-video sync)
 			await this.db.rebuildFtsIndexes();
