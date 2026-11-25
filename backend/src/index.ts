@@ -25,6 +25,7 @@ import authRoutes from "./routes/auth.js";
 import { authMiddleware } from "./lib/auth.js";
 import { scanScheduler } from "./services/scan-scheduler.js";
 import { MigrationService } from "./services/migration-service.js";
+import { enableWalMode } from "./lib/database.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -156,6 +157,7 @@ const start = async () => {
 		// Run migrations before starting the server
 		const migrationService = new MigrationService();
 		await migrationService.runMigrations();
+		console.log(`SQLite journal mode: ${await enableWalMode()}`);
 
 		if (downloadsEnabled()) {
 			try {
