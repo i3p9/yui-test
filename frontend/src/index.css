@@ -1,9 +1,32 @@
 @import "tailwindcss";
 @import "plyr-react/plyr.css";
 
+/* App palette. Pure #000 / #fff was too harsh and the mid greys too faint,
+   so the neutrals are retuned here and every bg-black / text-white / zinc-*
+   class picks them up. Page < panel < raised surface; text greys all stay
+   readable on the panel colour (zinc-500 is ~5:1, zinc-600 is decorative). */
+@theme {
+  --color-black: #0e0e10;     /* page background */
+  --color-white: #ececf0;     /* primary text */
+  --color-zinc-950: #141417;  /* panels, header */
+  --color-zinc-900: #1b1b1f;  /* inputs, hover, raised */
+  --color-zinc-800: #2a2a30;  /* borders */
+  --color-zinc-700: #3a3a41;  /* strong borders */
+  --color-zinc-600: #66666f;  /* placeholders, decorative text */
+  --color-zinc-500: #8c8c96;  /* hints, metadata */
+  --color-zinc-400: #aaaab3;  /* labels, secondary text */
+  --color-zinc-300: #cfcfd6;  /* body text on panels */
+  --color-zinc-200: #e0e0e6;
+  /* Slightly deeper, less neon red for large fills */
+  --color-red-600: #d4282d;
+  --color-red-500: #e5484d;
+}
+
+body { background: var(--color-black); color: var(--color-white); }
+
 /* Custom Plyr theming for brutalist design */
 :root {
-  --plyr-color-main: #dc2626; /* red-600 */
+  --plyr-color-main: #d4282d; /* red-600 */
   --plyr-video-background: #000000;
   --plyr-menu-background: #18181b; /* zinc-900 */
   --plyr-menu-color: #ffffff;
@@ -13,7 +36,7 @@
 }
 
 .plyr {
-  --plyr-color-main: #dc2626;
+  --plyr-color-main: #d4282d;
 }
 
 .plyr__controls {
@@ -22,7 +45,7 @@
 }
 
 .plyr__control:hover {
-  background: #dc2626;
+  background: #d4282d;
 }
 
 .plyr__menu__container {
@@ -35,8 +58,30 @@
 }
 
 .plyr--full-ui input[type="range"] {
-  color: #dc2626;
+  color: #d4282d;
 }
+
+/* One visible focus ring for keyboard users everywhere. */
+:focus-visible {
+  outline: 2px solid #ef4444; /* red-500 */
+  outline-offset: 2px;
+}
+
+/* Watch page player: reserve a fixed 16:9 box from the first paint so nothing
+   jumps when metadata loads. On md+ the column width is capped so the player's height
+   leaves room for the header (~58px) and the title/channel row below it. */
+.watch-column { margin-inline: auto; }
+@media (min-width: 768px) {
+  .watch-column { max-width: calc((100dvh - 12rem) * 16 / 9); }
+}
+.watch-player { aspect-ratio: 16 / 9; width: 100%; }
+.watch-player .plyr,
+.watch-player .plyr__video-wrapper,
+.watch-player video {
+  width: 100%;
+  height: 100%;
+}
+.watch-player video { object-fit: contain; }
 
 /* Scrollbar styling */
 ::-webkit-scrollbar {
