@@ -169,9 +169,9 @@ export function SearchInput() {
   };
 
   return (
-    <div className="relative flex-1 max-w-full md:max-w-2xl mx-2 md:mx-8">
+    <div className="relative w-full max-w-2xl">
       {/* Input */}
-      <div className="bg-zinc-900 border-2 border-zinc-800 focus-within:border-red-600 transition-colors flex items-center px-4 py-2">
+      <div className="flex h-10 items-center border-2 border-zinc-800 bg-zinc-900 px-3 transition-colors focus-within:border-red-600">
         <input
           ref={inputRef}
           type="text"
@@ -180,7 +180,8 @@ export function SearchInput() {
           onKeyDown={handleKeyDown}
           onFocus={handleInputFocus}
           placeholder="Search videos and channels..."
-          className="flex-1 bg-transparent outline-none text-sm font-mono placeholder-zinc-600"
+          className="min-w-0 flex-1 bg-transparent text-sm placeholder-zinc-500 outline-none"
+          aria-label="Search videos and channels"
         />
         {isLoading ? (
           <div className="w-5 h-5 border-2 border-zinc-600 border-t-red-600 rounded-full animate-spin" />

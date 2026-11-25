@@ -271,6 +271,10 @@ export const updateWatchProgress = (
 export const getWatchProgress = (videoId: string) =>
 	fetchAPI<{ progress: any | null }>(`/progress/${videoId}`);
 
+/** Recently watched, unfinished videos with percent watched. */
+export const getContinueWatching = (limit = 12) =>
+	fetchAPI<{ items: { video: any; percent: number }[] }>(`/progress?limit=${limit}`);
+
 // Metadata
 export const getMetadataStats = () =>
 	fetchAPI<MetadataStats>("/metadata/stats");
