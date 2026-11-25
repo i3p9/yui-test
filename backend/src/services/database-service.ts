@@ -3,6 +3,7 @@
 // ============================================
 // Handles all database operations for scanning
 
+import { access } from "fs/promises";
 import { getPrismaClient } from "../lib/database.js";
 import type {
 	ParsedMetadata,
@@ -12,9 +13,83 @@ import type {
 import { LikedVideoOrderService } from "./liked-video-order-service.js";
 import { SearchService } from "./search-service.js";
 
+/** What an incremental scan needs to know about an indexed video. */
+export interface KnownVideo {
+	videoPath: string;
+	mediaMtime: string | null;
+	infoJsonMtime: string | null;
+	filesizeBytes: bigint | null;
+	uploaderId: string | null;
+	missingOnDisk: boolean;
+}
+
 export class DatabaseService {
 	private prisma = getPrismaClient();
 	private searchService = new SearchService();
+
+	/** One query for the whole index, so incremental scans don't look rows up one by one. */
+	async getScanIndex(): Promise<Map<string, KnownVideo>> {
+		const rows = await this.prisma.video.findMany({
+			select: { videoId: true, videoPath: true, mediaMtime: true, infoJsonMtime: true, filesizeBytes: true, uploaderId: true, missingOnDisk: true },
+		});
+		return new Map(rows.map(({ videoId, ...known }) => [videoId, known]));
+	}
+
+	/** Videos that were marked missing but turned up again unchanged. */
+	async unmarkMissing(videoIds: string[]): Promise<void> {
+		for (let i = 0; i < videoIds.length; i += 500) {
+			await this.prisma.video.updateMany({
+				where: { videoId: { in: videoIds.slice(i, i + 500) } },
+				data: { missingOnDisk: false, lastScannedAt: new Date().toISOString() },
+			});
+		}
+	}
+
+	/**
+	 * Recompute every channel's video count and latest upload in one read, then write
+	 * only channels whose numbers changed (one write per channel per scan was most of
+	 * an idle scan's disk work). Same values the old per-channel update produced.
+	 * Returns the number of channels written.
+	 */
+	async syncChannelStats(): Promise<number> {
+		const videos = await this.prisma.video.findMany({
+			where: { missingOnDisk: false, uploaderId: { not: null } },
+			select: { uploaderId: true, uploadDate: true, uploader: true },
+		});
+		// Latest = highest upload date; videos without a date sort lowest (like ORDER BY ... DESC in SQLite).
+		const stats = new Map<string, { count: number; latest: (typeof videos)[number] }>();
+		for (const video of videos) {
+			const entry = stats.get(video.uploaderId!);
+			if (!entry) stats.set(video.uploaderId!, { count: 1, latest: video });
+			else {
+				entry.count++;
+				if ((video.uploadDate ?? "") > (entry.latest.uploadDate ?? "")) entry.latest = video;
+			}
+		}
+
+		const existing = new Map(
+			(await this.prisma.channel.findMany({ select: { uploaderId: true, videoCount: true, lastUploadDate: true } }))
+				.map((c) => [c.uploaderId, c])
+		);
+		const now = new Date().toISOString();
+		const writes = [];
+		for (const [uploaderId, { count, latest }] of stats) {
+			const lastUploadDate = latest.uploadDate ?? null;
+			const current = existing.get(uploaderId);
+			if (!current) {
+				writes.push(this.prisma.channel.create({
+					data: { uploaderId, name: latest.uploader || "Unknown", videoCount: count, lastUploadDate, lastScannedAt: now },
+				}));
+			} else if (current.videoCount !== count || current.lastUploadDate !== lastUploadDate) {
+				writes.push(this.prisma.channel.update({
+					where: { uploaderId },
+					data: { videoCount: count, lastUploadDate, lastScannedAt: now },
+				}));
+			}
+		}
+		for (let i = 0; i < writes.length; i += 200) await this.prisma.$transaction(writes.slice(i, i + 200));
+		return writes.length;
+	}
 
 	/**
 	 * Upsert a video (insert or update)
@@ -105,7 +180,15 @@ export class DatabaseService {
 		existing: any,
 		newMetadata: ParsedMetadata
 	): Promise<boolean> {
-		// Check if metadata changed (info.json or media file modified)
+		// A second copy of the same video (e.g. in both Channels and Liked). Comparing
+		// mtimes across different files made the row flip between copies every scan,
+		// so keep the indexed copy unless the new one is bigger or the old one is gone.
+		if (existing.videoPath !== newMetadata.videoPath) {
+			if (BigInt(newMetadata.filesizeBytes ?? 0) > BigInt(existing.filesizeBytes ?? 0)) return true;
+			return !(await access(existing.videoPath).then(() => true, () => false));
+		}
+
+		// Same file: check if metadata changed (info.json or media file modified)
 		const infoChanged =
 			existing.infoJsonMtime &&
 			newMetadata.infoJsonMtime &&
@@ -238,75 +321,21 @@ export class DatabaseService {
 		seenVideoIds: Set<string>,
 		libraryPath?: string
 	): Promise<number> {
-		const ids = Array.from(seenVideoIds);
-
-		// SQLite has a variable limit (~999). Use a temp approach:
-		// First mark ALL as missing (for this library), then un-mark seen ones in chunks.
-		const baseWhere = libraryPath ? { libraryPath } : {};
-
-		// Mark all as missing
-		await this.prisma.video.updateMany({
-			where: { ...baseWhere, missingOnDisk: false },
-			data: { missingOnDisk: true },
+		// Only write rows that actually disappeared; the old "mark all, then un-mark
+		// what we saw" rewrote every row twice per scan. Seen rows are un-marked by the
+		// scan itself (upsertVideo / unmarkMissing).
+		const present = await this.prisma.video.findMany({
+			where: { ...(libraryPath ? { libraryPath } : {}), missingOnDisk: false },
+			select: { videoId: true },
 		});
-
-		// Un-mark seen videos in chunks of 500
-		const CHUNK_SIZE = 500;
-		let unmarked = 0;
-		for (let i = 0; i < ids.length; i += CHUNK_SIZE) {
-			const chunk = ids.slice(i, i + CHUNK_SIZE);
-			const result = await this.prisma.video.updateMany({
-				where: { ...baseWhere, videoId: { in: chunk } },
-				data: { missingOnDisk: false },
+		const gone = present.map((v) => v.videoId).filter((id) => !seenVideoIds.has(id));
+		for (let i = 0; i < gone.length; i += 500) {
+			await this.prisma.video.updateMany({
+				where: { videoId: { in: gone.slice(i, i + 500) } },
+				data: { missingOnDisk: true },
 			});
-			unmarked += result.count;
 		}
-
-		// Count how many ended up missing
-		const missingCount = await this.prisma.video.count({
-			where: { ...baseWhere, missingOnDisk: true },
-		});
-
-		return missingCount;
-	}
-
-	/**
-	 * Update channel statistics
-	 */
-	async updateChannelStats(uploaderId: string, options?: { skipFtsSync?: boolean }): Promise<void> {
-		// Count videos for this channel
-		const videoCount = await this.prisma.video.count({
-			where: { uploaderId, missingOnDisk: false },
-		});
-
-		// Get latest upload date
-		const latestVideo = await this.prisma.video.findFirst({
-			where: { uploaderId, missingOnDisk: false },
-			orderBy: { uploadDate: "desc" },
-			select: { uploadDate: true, uploader: true },
-		});
-
-		if (!latestVideo) return;
-
-		// Upsert channel record
-		await this.prisma.channel.upsert({
-			where: { uploaderId },
-			create: {
-				uploaderId,
-				name: latestVideo.uploader || "Unknown",
-				videoCount,
-				lastUploadDate: latestVideo.uploadDate,
-				lastScannedAt: new Date().toISOString(),
-			},
-			update: {
-				videoCount,
-				lastUploadDate: latestVideo.uploadDate,
-				lastScannedAt: new Date().toISOString(),
-			},
-		});
-
-		// Sync with FTS5 after channel update
-		if (!options?.skipFtsSync) await this.searchService.syncChannel(uploaderId);
+		return gone.length;
 	}
 
 	/**
@@ -316,6 +345,12 @@ export class DatabaseService {
 		channelImage: ChannelImageCandidate,
 		options?: { skipFtsSync?: boolean }
 	): Promise<void> {
+		// Skip the write when nothing changed (every scan sees the same images).
+		const current = await this.prisma.channel.findUnique({
+			where: { uploaderId: channelImage.channelId },
+			select: { name: true, thumbnailPath: true },
+		});
+		if (current?.name === channelImage.channelName && current.thumbnailPath === channelImage.imagePath) return;
 
 		await this.prisma.channel.upsert({
 			where: { uploaderId: channelImage.channelId },

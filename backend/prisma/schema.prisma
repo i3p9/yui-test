@@ -68,6 +68,7 @@ model Video {
 
   // Indexes for faster queries
   @@index([uploader])
+  @@index([uploaderId])
   @@index([uploadDate])
   @@index([mediaType])
   @@index([missingOnDisk])

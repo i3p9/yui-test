@@ -3,14 +3,15 @@
 // ============================================
 // Generates optimized thumbnails from original images or video frames
 
-import { exec } from "child_process";
+import { execFile } from "child_process";
 import { promisify } from "util";
 import { mkdir, access, stat } from "fs/promises";
 import { join, dirname } from "path";
 import { existsSync } from "fs";
 import pLimit from "p-limit";
 
-const execAsync = promisify(exec);
+const execFileAsync = promisify(execFile);
+const FFMPEG_TIMEOUT_MS = 2 * 60_000; // a corrupt file must not hang the scan
 
 export interface ThumbnailResult {
 	videoId: string;
@@ -89,38 +90,12 @@ export class ThumbnailGenerator {
 				console.log(
 					`Resizing original thumbnail for ${videoId} from ${existingThumbnailPath}`
 				);
-				await this.resizeImage(
-					existingThumbnailPath,
-					smallPath,
-					this.SMALL_SIZE.width,
-					this.SMALL_SIZE.height
-				);
-				await this.resizeImage(
-					existingThumbnailPath,
-					largePath,
-					this.LARGE_SIZE.width,
-					this.LARGE_SIZE.height
-				);
+				await this.render(existingThumbnailPath, smallPath, largePath);
 				source = "original";
 			} else {
 				// OPTION 2: Extract frame from video (slower, but necessary)
 				console.log(`Extracting thumbnail from video for ${videoId}`);
-				const timestamp = this.getTimestamp(durationSeconds);
-
-				await this.extractFrame(
-					videoPath,
-					timestamp,
-					smallPath,
-					this.SMALL_SIZE.width,
-					this.SMALL_SIZE.height
-				);
-				await this.extractFrame(
-					videoPath,
-					timestamp,
-					largePath,
-					this.LARGE_SIZE.width,
-					this.LARGE_SIZE.height
-				);
+				await this.render(videoPath, smallPath, largePath, this.getTimestamp(durationSeconds));
 				source = "extracted";
 			}
 
@@ -222,70 +197,27 @@ export class ThumbnailGenerator {
 	}
 
 	/**
-	 * Resize an existing image to target dimensions
-	 * Uses ffmpeg for consistency (could also use sharp/jimp for better performance)
+	 * Write both thumbnail sizes from one ffmpeg run: the input is opened and decoded
+	 * once (one seek into the video on a spinning disk instead of two). Arguments are
+	 * passed directly, not through a shell, so quotes, $ or backticks in titles are safe.
+	 * `seekSeconds` extracts a frame from a video; omit it to resize an image.
 	 */
-	private async resizeImage(
-		inputPath: string,
-		outputPath: string,
-		width: number,
-		height: number
-	): Promise<void> {
-		// Ensure output directory exists
-		await mkdir(dirname(outputPath), { recursive: true });
-
-		// Use ffmpeg to resize with proper aspect ratio handling
-		// -vf scale applies letterboxing if needed
-		const command = [
-			"ffmpeg",
-			"-i", `"${inputPath}"`,
-			"-vf", `"scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2:black"`,
-			"-frames:v", "1",
-			"-q:v", "2", // High quality JPEG
-			"-y", // Overwrite
-			`"${outputPath}"`,
-		].join(" ");
-
+	private async render(input: string, smallPath: string, largePath: string, seekSeconds?: number): Promise<void> {
+		const fit = ({ width, height }: { width: number; height: number }) =>
+			`scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2:black`;
+		const output = (label: string, path: string) => ["-map", `[${label}]`, "-frames:v", "1", "-q:v", "2", path];
+		const args = [
+			"-v", "error", "-y",
+			...(seekSeconds !== undefined ? ["-ss", String(seekSeconds)] : []), // before -i: fast seek
+			"-i", input,
+			"-filter_complex", `[0:v]split=2[a][b];[a]${fit(this.SMALL_SIZE)}[s];[b]${fit(this.LARGE_SIZE)}[l]`,
+			...output("s", smallPath),
+			...output("l", largePath),
+		];
 		try {
-			await execAsync(command);
+			await execFileAsync("ffmpeg", args, { timeout: FFMPEG_TIMEOUT_MS });
 		} catch (error) {
-			throw new Error(
-				`Failed to resize image: ${error instanceof Error ? error.message : String(error)}`
-			);
-		}
-	}
-
-	/**
-	 * Extract a frame from video at specified timestamp
-	 */
-	private async extractFrame(
-		videoPath: string,
-		timestamp: number,
-		outputPath: string,
-		width: number,
-		height: number
-	): Promise<void> {
-		// Ensure output directory exists
-		await mkdir(dirname(outputPath), { recursive: true });
-
-		// Extract frame at timestamp with letterboxing
-		const command = [
-			"ffmpeg",
-			"-ss", String(timestamp), // Seek to timestamp (before input for faster seeking)
-			"-i", `"${videoPath}"`,
-			"-vf", `"scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2:black"`,
-			"-frames:v", "1",
-			"-q:v", "2", // High quality JPEG
-			"-y", // Overwrite
-			`"${outputPath}"`,
-		].join(" ");
-
-		try {
-			await execAsync(command);
-		} catch (error) {
-			throw new Error(
-				`Failed to extract frame: ${error instanceof Error ? error.message : String(error)}`
-			);
+			throw new Error(`ffmpeg failed for ${input}: ${error instanceof Error ? error.message : String(error)}`);
 		}
 	}
 

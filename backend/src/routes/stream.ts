@@ -5,9 +5,21 @@
 
 import { FastifyPluginAsync } from 'fastify';
 import { getPrismaClient } from '../lib/database.js';
-import { createReadStream, statSync, existsSync } from 'fs';
+import { createReadStream } from 'fs';
+import { stat } from 'fs/promises';
 import path from 'path';
 import { loadConfig } from '../lib/config.js';
+
+// Size of a regular file, or null if it doesn't exist. Async so a slow disk doesn't
+// stall every other request, which the old blocking checks did.
+async function fileSize(filePath: string): Promise<number | null> {
+  try {
+    const info = await stat(filePath);
+    return info.isFile() ? info.size : null;
+  } catch {
+    return null;
+  }
+}
 
 const streamRoutes: FastifyPluginAsync = async (fastify) => {
   const prisma = getPrismaClient();
@@ -28,14 +40,10 @@ const streamRoutes: FastifyPluginAsync = async (fastify) => {
 
     const videoPath = video.videoPath;
 
-    // Check if file exists
-    if (!existsSync(videoPath)) {
+    const size = await fileSize(videoPath);
+    if (size === null) {
       return reply.code(404).send({ error: 'Video file not found on disk' });
     }
-
-    // Get file stats
-    const stat = statSync(videoPath);
-    const fileSize = stat.size;
 
     // Get range header
     const range = request.headers.range;
@@ -57,7 +65,7 @@ const streamRoutes: FastifyPluginAsync = async (fastify) => {
       // Parse range header
       const parts = range.replace(/bytes=/, '').split('-');
       const start = parseInt(parts[0], 10);
-      const end = parts[1] ? parseInt(parts[1], 10) : fileSize - 1;
+      const end = parts[1] ? parseInt(parts[1], 10) : size - 1;
       const chunkSize = end - start + 1;
 
       // Create stream for the requested range
@@ -65,7 +73,7 @@ const streamRoutes: FastifyPluginAsync = async (fastify) => {
 
       // Set response headers for partial content
       reply.code(206);
-      reply.header('Content-Range', `bytes ${start}-${end}/${fileSize}`);
+      reply.header('Content-Range', `bytes ${start}-${end}/${size}`);
       reply.header('Accept-Ranges', 'bytes');
       reply.header('Content-Length', chunkSize);
       reply.header('Content-Type', contentType);
@@ -75,7 +83,7 @@ const streamRoutes: FastifyPluginAsync = async (fastify) => {
       // No range request - send entire file
       const stream = createReadStream(videoPath);
 
-      reply.header('Content-Length', fileSize);
+      reply.header('Content-Length', size);
       reply.header('Content-Type', contentType);
       reply.header('Accept-Ranges', 'bytes');
 
@@ -102,12 +110,12 @@ const streamRoutes: FastifyPluginAsync = async (fastify) => {
     );
 
     // Try to serve optimized thumbnail first
-    if (existsSync(optimizedPath)) {
-      const stat = statSync(optimizedPath);
+    const optimizedSize = await fileSize(optimizedPath);
+    if (optimizedSize !== null) {
       const stream = createReadStream(optimizedPath);
 
       reply.header('Content-Type', 'image/jpeg');
-      reply.header('Content-Length', stat.size);
+      reply.header('Content-Length', optimizedSize);
       reply.header('Cache-Control', 'public, max-age=31536000'); // Cache for 1 year
 
       return reply.send(stream);
@@ -119,7 +127,8 @@ const streamRoutes: FastifyPluginAsync = async (fastify) => {
       select: { thumbnailPath: true },
     });
 
-    if (video?.thumbnailPath && existsSync(video.thumbnailPath)) {
+    const originalSize = video?.thumbnailPath ? await fileSize(video.thumbnailPath) : null;
+    if (video?.thumbnailPath && originalSize !== null) {
       const ext = path.extname(video.thumbnailPath).toLowerCase();
       const mimeTypes: Record<string, string> = {
         '.jpg': 'image/jpeg',
@@ -129,11 +138,10 @@ const streamRoutes: FastifyPluginAsync = async (fastify) => {
       };
       const contentType = mimeTypes[ext] || 'image/jpeg';
 
-      const stat = statSync(video.thumbnailPath);
       const stream = createReadStream(video.thumbnailPath);
 
       reply.header('Content-Type', contentType);
-      reply.header('Content-Length', stat.size);
+      reply.header('Content-Length', originalSize);
       reply.header('Cache-Control', 'public, max-age=86400'); // Cache for 1 day (shorter since it's original)
 
       return reply.send(stream);
@@ -152,8 +160,8 @@ const streamRoutes: FastifyPluginAsync = async (fastify) => {
     const config = await loadConfig();
     const thumbnailPath = path.join(config.thumbnailDir, filename);
 
-    // Check if file exists
-    if (!existsSync(thumbnailPath)) {
+    const thumbnailSize = await fileSize(thumbnailPath);
+    if (thumbnailSize === null) {
       return reply.code(404).send({ error: 'Thumbnail not found' });
     }
 
@@ -168,14 +176,11 @@ const streamRoutes: FastifyPluginAsync = async (fastify) => {
     };
     const contentType = mimeTypes[ext] || 'image/jpeg';
 
-    // Get file stats for size
-    const stat = statSync(thumbnailPath);
-
     // Stream the thumbnail
     const stream = createReadStream(thumbnailPath);
 
     reply.header('Content-Type', contentType);
-    reply.header('Content-Length', stat.size);
+    reply.header('Content-Length', thumbnailSize);
     reply.header('Cache-Control', 'public, max-age=31536000'); // Cache for 1 year
 
     return reply.send(stream);

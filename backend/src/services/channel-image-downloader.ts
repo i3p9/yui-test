@@ -19,6 +19,7 @@ import { mkdtemp } from "fs/promises";
 import { getPrismaClient } from "../lib/database.js";
 import { loadConfig } from "../lib/config.js";
 import { channelImageState } from "../lib/channel-image-state.js";
+import pLimit from "p-limit";
 
 
 // Default threshold skips channels you only have a stray liked video from.
@@ -74,7 +75,10 @@ export class ChannelImageDownloader {
 			let bannersDownloaded = 0;
 			let failed = 0;
 
-			for (const channel of channels) {
+			// Two channels at a time: each is a separate yt-dlp run that mostly waits on
+			// the network. Kept low to stay gentle with YouTube.
+			const limit = pLimit(2);
+			await Promise.all(channels.map((channel) => limit(async () => {
 				channelImageState.updateProgress({
 					currentChannel: channel.name || channel.uploaderId,
 				});
@@ -90,7 +94,7 @@ export class ChannelImageDownloader {
 							processed,
 							skipped,
 						});
-						continue;
+						return;
 					}
 
 					const result = await this.downloadForChannel(channel, channelRoot);
@@ -125,7 +129,7 @@ export class ChannelImageDownloader {
 						failed,
 					});
 				}
-			}
+			})));
 		} finally {
 			channelImageState.complete();
 		}
