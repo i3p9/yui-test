@@ -40,12 +40,13 @@ test('real legacy SQL migration chain backfills likes and preserves playback rec
 import sqlite3, pathlib, sys, json
 conn = sqlite3.connect(sys.argv[1])
 paths = sorted(pathlib.Path(sys.argv[2]).glob('*/migration.sql'))
-for path in paths[:-1]: conn.executescript(path.read_text())
+target = next(i for i, p in enumerate(paths) if p.parent.name.endswith('_add_downloader'))
+for path in paths[:target]: conn.executescript(path.read_text())
 for vid, kind, rank in [('aaaaaaaaaaa', 'liked_videos', 7), ('bbbbbbbbbbb', 'channel_archive', 3), ('ccccccccccc', 'channel_archive', None), ('ddddddddddd', 'liked_videos', None)]:
  conn.execute("INSERT INTO video (video_id,title,media_type,library_path,video_path,metadata_source,first_seen_at,last_scanned_at,liked_order) VALUES (?,?,?,?,?,?,?,?,?)", (vid,'Old video',kind,'/old','/old/'+vid+'.mp4','info_json','2020','2020',rank))
 conn.execute("INSERT INTO watch_progress (video_id,position_seconds,last_watched_at) VALUES ('aaaaaaaaaaa',42,'2020')")
 conn.commit()
-conn.executescript(paths[-1].read_text())
+for path in paths[target:]: conn.executescript(path.read_text())  # downloader migration, then any later ones
 print(json.dumps({'likes': conn.execute('SELECT video_id,liked_order FROM liked_video ORDER BY video_id').fetchall(), 'path': conn.execute("SELECT video_path FROM video WHERE video_id='aaaaaaaaaaa'").fetchone()[0], 'position':conn.execute('SELECT position_seconds FROM watch_progress').fetchone()[0], 'enabled':conn.execute('SELECT scheduleEnabled FROM download_settings').fetchone()[0]}))
 `;
     const result = JSON.parse(execFileSync('python3', ['-c', script, join(root, 'old.db'), resolve('prisma/migrations')], { encoding: 'utf8' }));
